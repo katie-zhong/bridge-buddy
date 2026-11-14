@@ -162,8 +162,8 @@ test('picking a detail switches on its strategy once, and bad settings are refus
   await call(t, '/me', 'PATCH', { struggles: ['read-dense', 'attn-drift', 'num-steps'] });
   assert.deepEqual(await active(), ['read-dense']);
 
-  const ok = await call(t, '/me', 'PATCH', { settings: { replaySpeed: true, speed: 1.5, wordHighlight: true } });
-  assert.equal(ok.data.settings.speed, 1.5);
+  const ok = await call(t, '/me', 'PATCH', { settings: { replaySpeed: true, speed: 1.25, wordHighlight: true } });
+  assert.equal(ok.data.settings.speed, 1.25);
   assert.equal((await call(t, '/me', 'PATCH', { settings: { speed: 9 } })).status, 400);
   assert.equal((await call(t, '/me', 'PATCH', { settings: { isAdmin: true } })).status, 400);
 });

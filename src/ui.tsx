@@ -12,8 +12,8 @@ export interface Settings {
   /** Lecture transcript tools: highlight the word being read during a replay. */
   wordHighlight?: boolean;
 }
-export type Speed = 0.75 | 1 | 1.5 | 2;
-export const SPEEDS: Speed[] = [0.75, 1, 1.5, 2];
+export type Speed = 0.75 | 1 | 1.25 | 1.5 | 1.75 | 2;
+export const SPEEDS: Speed[] = [0.75, 1, 1.25, 1.5, 1.75, 2];
 export type Role = 'instructor' | 'ta' | 'isa';
 export interface Course {
   code: string; title: string; source: string; demo: boolean; synced_at: number;

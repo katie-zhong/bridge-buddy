@@ -25,7 +25,7 @@ const MePatch = z.object({
     calm: z.boolean(), level: z.enum(['hint', 'example', 'walkthrough']), focus: z.boolean(), checkpoints: z.boolean(),
     reminder: z.string().regex(/^(\d\d:\d\d)?$/), shareAggregates: z.boolean(), recs: z.boolean(), onboarded: z.boolean(),
     readAloud: z.boolean(), dictation: z.boolean(),
-    replaySpeed: z.boolean(), speed: z.union([z.literal(0.75), z.literal(1), z.literal(1.5), z.literal(2)]), wordHighlight: z.boolean(),
+    replaySpeed: z.boolean(), speed: z.union([z.literal(0.75), z.literal(1), z.literal(1.25), z.literal(1.5), z.literal(1.75), z.literal(2)]), wordHighlight: z.boolean(),
   }).partial().strict().optional(),
   struggles: z.array(z.string().max(40)).max(20).optional(),
 }).strict();
