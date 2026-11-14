@@ -7,6 +7,7 @@ import * as ai from './ai.mjs';
 import { z } from 'zod';
 import { CONCEPTS, AREAS, DETAILS, SYLLABUS } from './content.mjs';
 import { parseSyllabus, parseTranscript } from './integrations.mjs';
+import { applySample, clearProgress } from './sample.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const MIN_GROUP = 5; // never show an aggregate about fewer than this many students
@@ -23,12 +24,18 @@ const MePatch = z.object({
   settings: z.object({
     font: z.enum(['atkinson', 'lexend', 'system']), size: z.number().min(0.8).max(1.6), spacing: z.number().min(1.2).max(2.4),
     calm: z.boolean(), level: z.enum(['hint', 'example', 'walkthrough']), focus: z.boolean(), checkpoints: z.boolean(),
-    reminder: z.string().regex(/^(\d\d:\d\d)?$/), shareAggregates: z.boolean(), recs: z.boolean(), onboarded: z.boolean(),
+    reminder: z.string().regex(/^(\d\d:\d\d)?$/), shareAggregates: z.boolean(), shareFlags: z.boolean(), recs: z.boolean(), onboarded: z.boolean(),
     readAloud: z.boolean(), dictation: z.boolean(),
     replaySpeed: z.boolean(), speed: z.union([z.literal(0.75), z.literal(1), z.literal(1.5), z.literal(2)]), wordHighlight: z.boolean(),
   }).partial().strict().optional(),
   struggles: z.array(z.string().max(40)).max(20).optional(),
 }).strict();
+
+const Login = z.object({
+  name: z.string().trim().min(1, 'Please enter a name').max(40),
+  role: z.enum(['student', 'instructor']).default('student'),
+  sample: z.boolean().default(true), // demo: a new student starts with sample progress on the map
+});
 
 // Returns the (req, res) request listener. Used directly by the Vercel Function in api/,
 // and wrapped in an http.Server by createApp() for local dev, `npm start` and tests.
@@ -43,7 +50,10 @@ export function createHandler(db = openDb()) {
 
   const pub = (u) => ({ id: u.id, name: u.name, role: u.role, settings: JSON.parse(u.settings || '{}'), struggles: JSON.parse(u.struggles || '[]') });
   const rwLicensed = (u) => !!one('select readwrite from accommodations where user_id=?', u.id)?.readwrite;
+  // Counted in anonymous class totals (peer strategy outcomes, strategy use, practice results). On unless turned off.
   const shares = (u) => JSON.parse(u.settings || '{}').shareAggregates !== false;
+  // Flags reach the instructor's class view only if the student opted in. Off by default.
+  const sharesFlags = (u) => JSON.parse(u.settings || '{}').shareFlags === true;
   const lectureFor = (id, user) => {
     const l = one('select * from lectures where id=?', id);
     if (!l || (l.owner_id && l.owner_id !== user.id)) throw fail(404, 'Lecture not found');
@@ -105,12 +115,13 @@ export function createHandler(db = openDb()) {
   const markRow = `select m.*, s.text seg_text, s.t_start, s.idx, s.concept, l.title lecture from marks m join segments s on s.id=m.segment_id join lectures l on l.id=m.lecture_id`;
   // ---- auth ------------------------------------------------------------
   on('POST', '/api/login', ({ body }) => {
-    const name = String(body.name || '').trim().slice(0, 40);
-    const role = body.role === 'instructor' ? 'instructor' : 'student';
-    if (!name) throw fail(400, 'Please enter a name');
+    const parsed = Login.safeParse(body);
+    if (!parsed.success) throw fail(400, parsed.error.issues[0]?.message === 'Please enter a name' ? 'Please enter a name' : 'Bad request');
+    const { name, role, sample } = parsed.data;
     const id = uid();
     const token = uid() + uid() + uid();
     run('insert into users(id,name,role,token,created_at) values(?,?,?,?,?)', id, name, role, token, now());
+    if (role === 'student' && sample) applySample(db, id); // demo: start with sample progress
     return { token, user: pub(one('select * from users where id=?', id)) };
   }, { open: true });
 
@@ -212,6 +223,16 @@ export function createHandler(db = openDb()) {
     if (!parsed.success) throw fail(400, 'Those highlights are not valid');
     run('insert into rw_highlights(user_id,lecture_id,data) values(?,?,?) on conflict(user_id,lecture_id) do update set data=excluded.data', user.id, lecture.id, JSON.stringify(parsed.data.highlights));
     return { ok: true };
+  });
+
+  // Demo: swap this student's progress for the sample map, or clear it to start from scratch.
+  const SampleBody = z.object({ sample: z.boolean() }).strict();
+  on('POST', '/api/demo/progress', ({ user, body }) => {
+    if (user.role !== 'student') throw fail(403, 'Students only');
+    const parsed = SampleBody.safeParse(body);
+    if (!parsed.success) throw fail(400, 'Say whether to load sample progress');
+    if (parsed.data.sample) applySample(db, user.id); else clearProgress(db, user.id);
+    return { sample: parsed.data.sample };
   });
 
   // ---- course people, pulled from the Brightspace syllabus ---------------
@@ -446,37 +467,87 @@ export function createHandler(db = openDb()) {
   });
 
   // ---- instructor view: aggregates only, never individuals --------------
+  // Flags come only from students who opted in to sharing them (shareFlags). Nothing a student
+  // typed to Norbu (questions, answers, notes) reaches this view, only counts. Strategy use is a
+  // plain count per strategy from students who did not opt out of class totals. Every number is
+  // about MIN_GROUP or more students, otherwise it is hidden.
+  const instructorOnly = (user) => { if (user.role !== 'instructor') throw fail(403, 'Instructors only'); };
+  const pct = (a, b) => (b ? Math.round((100 * a) / b) : null);
+  const people = (ms) => new Set(ms.map((m) => m.user_id)).size;
+  const classMarks = (lectureId, sharing) =>
+    q(`select m.*, s.concept from marks m join segments s on s.id=m.segment_id where m.lecture_id=? and m.kind!='comment'`, lectureId).filter((m) => sharing.has(m.user_id));
+  const conceptTitle = (c) => CONCEPTS[c]?.title || `Part ${c.replace('part-', '')}`;
+  const cohort = () => {
+    const students = q(`select * from users where role='student'`);
+    return { students, sharing: new Map(students.filter(sharesFlags).map((u) => [u.id, u])) };
+  };
+
+  on('GET', '/api/instructor/overview', ({ user }) => {
+    instructorOnly(user);
+    const { students, sharing } = cohort();
+    const counted = students.filter(shares);
+    const countedIds = new Set(counted.map((u) => u.id));
+    const lectures = q('select l.*, c.code course from lectures l join courses c on c.id=l.course_id where l.owner_id is null order by l.held_at desc').map((l) => {
+      const ms = classMarks(l.id, sharing);
+      const n = people(ms);
+      const byConcept = [...new Set(ms.map((m) => m.concept))]
+        .map((c) => ({ concept: c, title: conceptTitle(c), students: people(ms.filter((m) => m.concept === c)) }))
+        .filter((c) => c.students >= MIN_GROUP).sort((a, b) => b.students - a.students);
+      return {
+        id: l.id, title: l.title, course: l.course, held_at: l.held_at,
+        students: n >= MIN_GROUP ? n : null, share: n >= MIN_GROUP ? pct(n, sharing.size) : null,
+        top: byConcept[0] ? { title: byConcept[0].title, share: pct(byConcept[0].students, sharing.size) } : null,
+      };
+    });
+    const marks = q(`select * from marks where kind!='comment'`).filter((m) => sharing.has(m.user_id));
+    const firsts = q('select user_id, passed from attempts where first_try=1').filter((a) => countedIds.has(a.user_id));
+    const uses = q('select * from strategy_use where active=1').filter((x) => countedIds.has(x.user_id));
+    return {
+      min_group: MIN_GROUP,
+      class_size: students.length,
+      sharing: sharing.size >= MIN_GROUP ? sharing.size : null,
+      demo: students.some((u) => u.synthetic),
+      totals: people(marks) >= MIN_GROUP ? {
+        flags: marks.length,
+        mended: pct(marks.filter((m) => m.status === 'repaired').length, marks.length),
+        practice: people(firsts) >= MIN_GROUP ? pct(firsts.filter((a) => a.passed).length, firsts.length) : null,
+      } : null,
+      lectures,
+      strategies: DETAILS.map((d) => {
+        const n = new Set(uses.filter((x) => x.strategy_id === d.key).map((x) => x.user_id)).size;
+        return { id: d.key, title: d.strategy.title, students: n >= MIN_GROUP ? n : null, share: n >= MIN_GROUP ? pct(n, counted.length) : null };
+      }).filter((x) => x.students != null).sort((a, b) => (b.students ?? 0) - (a.students ?? 0)),
+    };
+  });
+
   on('GET', '/api/instructor/lectures/:id', ({ user, params }) => {
-    if (user.role !== 'instructor') throw fail(403, 'Instructors only');
+    instructorOnly(user);
     const lecture = one('select * from lectures where id=? and owner_id is null', params.id);
     if (!lecture) throw fail(404, 'Lecture not found');
     const segs = segsOf(lecture.id);
-    const sharing = new Map(q(`select * from users where role='student'`).filter(shares).map((u) => [u.id, u]));
-    const marks = q(`select m.*, s.concept from marks m join segments s on s.id=m.segment_id where m.lecture_id=? and m.kind!='comment'`, lecture.id).filter((m) => sharing.has(m.user_id));
-    const firsts = q('select user_id, passed from attempts where lecture_id=? and first_try=1', lecture.id).filter((a) => sharing.has(a.user_id));
+    const { students, sharing } = cohort(); // flags: only students who opted in
+    const countedIds = new Set(students.filter(shares).map((u) => u.id)); // practice: anonymous class totals
+    const marks = classMarks(lecture.id, sharing);
+    const firsts = q('select user_id, passed from attempts where lecture_id=? and first_try=1', lecture.id).filter((a) => countedIds.has(a.user_id));
     const class_size = sharing.size;
-    const people = (ms) => new Set(ms.map((m) => m.user_id)).size;
-    const pct = (a, b) => (b ? Math.round((100 * a) / b) : null);
     const concepts = [...new Set(segs.map((s) => s.concept))].map((c) => {
       const ms = marks.filter((m) => m.concept === c);
       const n = people(ms);
       const first = segs.find((s) => s.concept === c);
-      const base = { concept: c, title: CONCEPTS[c]?.title || `Part ${c.replace('part-', '')}`, t_start: first.t_start };
+      const base = { concept: c, title: conceptTitle(c), t_start: first.t_start };
       if (n < MIN_GROUP) return { ...base, suppressed: true };
       const tried = ms.filter((m) => m.first_try_pass != null);
-      const qs = {};
-      for (const m of ms) if (m.kind === 'question' && m.body) qs[m.body] = (qs[m.body] || 0) + 1;
       return {
         ...base, students: n, share: pct(n, class_size),
         repaired: pct(ms.filter((m) => m.status === 'repaired').length, ms.length),
         first_try: tried.length >= MIN_GROUP ? pct(tried.filter((m) => m.first_try_pass).length, tried.length) : null,
-        questions: people(ms.filter((m) => m.kind === 'question')) >= MIN_GROUP ? Object.entries(qs).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([text, count]) => ({ text, count })) : [],
       };
     });
     return {
-      lecture, class_size, min_group: MIN_GROUP,
+      lecture: { id: lecture.id, title: lecture.title, held_at: lecture.held_at },
+      class_size, min_group: MIN_GROUP, demo: [...sharing.values()].some((u) => u.synthetic), concepts,
       problems: q('select id, question, answer from problems where lecture_id=? order by created_at, id', lecture.id),
-      practice: people(firsts) >= MIN_GROUP ? { students: people(firsts), first_try: pct(firsts.filter((a) => a.passed).length, firsts.length) } : null, demo: [...sharing.values()].some((u) => u.synthetic), concepts,
+      practice: people(firsts) >= MIN_GROUP ? { students: people(firsts), first_try: pct(firsts.filter((a) => a.passed).length, firsts.length) } : null,
       segments: segs.map((s) => {
         const n = people(marks.filter((m) => m.segment_id === s.id));
         return { id: s.id, idx: s.idx, t_start: s.t_start, text: s.text, concept: s.concept, students: n >= MIN_GROUP ? n : null };

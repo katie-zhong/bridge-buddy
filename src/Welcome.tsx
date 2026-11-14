@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { api, go, MATERIALS, type Home } from './ui';
-import { Troll, type Mood } from './Troll';
+import { MaterialIcon, PlankIcon, Troll, type Mood } from './Troll';
 import { AreaPicker, Suggestions } from './Strategies';
 
 const TOUR: { title: string; body: string; mood: Mood; art: 'planks' | 'gap' | 'materials'; key?: string }[] = [
@@ -62,8 +62,8 @@ export function Welcome({ home, reload }: { home: Home; reload: () => void }) {
         <Troll size={120} mood={t.mood} />
         <div className="miniplanks" aria-hidden>
           {t.art === 'materials'
-            ? MATERIALS.map((m, k) => <i key={m} className={`mini m${k}`} />)
-            : [0, 1, 2, 3, 4].map((k) => <i key={k} className={`mini m0 ${t.art === 'gap' && k === 2 ? 'gap' : ''}`}>{t.art === 'gap' && k === 2 ? '?' : ''}</i>)}
+            ? MATERIALS.map((m, k) => <MaterialIcon key={m} level={k} size={60} />)
+            : [0, 1, 2, 3, 4].map((k) => (t.art === 'gap' && k === 2 ? <PlankIcon key={k} state="gap" size={60} /> : <MaterialIcon key={k} level={0} size={60} />))}
         </div>
       </div>
       <h1>{t.title} {t.key && <kbd>{t.key}</kbd>}</h1>

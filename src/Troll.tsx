@@ -86,6 +86,92 @@ export function PlankIcon({ state, size = 34 }: { state: PlankState; size?: numb
   );
 }
 
+// A lecture's block, from weakest to strongest. Same painterly treatment as the idea planks above:
+// soft wobbly edges, a lighter wash on top, no dark outlines.
+const MATERIAL: { base: string; light: string; grain: boolean; seam: string }[] = [
+  { base: '#cdb894', light: '#e3d4b6', grain: true, seam: '#7a553224' },   // driftwood
+  { base: '#b4824d', light: '#cf9f6a', grain: true, seam: '#5c3b1e30' },   // oak
+  { base: '#b7bcc0', light: '#d6d9db', grain: false, seam: '#f1f3f4aa' },  // stone
+  { base: '#74828f', light: '#98a5b0', grain: false, seam: '#c5cfd855' },  // iron
+  { base: '#e4b940', light: '#f6dc8a', grain: false, seam: '#fff2b866' },  // gold
+];
+const f1 = (n: number) => n.toFixed(1);
+const MOSS = ['#7a9e4e', '#668a3f', '#8bab5a'];
+type Corner = [number, number];
+
+/**
+ * One lecture's block, centred on (0, 0) with its outer edge up. By default a rectangle `len` by
+ * `h`; give `poly` (outer-left, outer-right, inner-right, inner-left) for a wedge in an arch.
+ * `level` is the material (0 to 4), `rot` is 0 sound, 1 starting to rot (moss), 2 rotten (moss and
+ * bites out of the edges), `open` is a missing piece (a dashed hole for a flag not yet mended), and
+ * `gone` leaves the stone out altogether (only the dashed hole), and `joints` adds seams across it
+ * so a long block reads as boards or masonry.
+ */
+export function MaterialBlock({ level, rot = 0, open = false, gone = false, len, h, poly, joints = 0 }: { level: number; rot?: 0 | 1 | 2; open?: boolean; gone?: boolean; len: number; h: number; poly?: Corner[]; joints?: number }) {
+  const m = MATERIAL[Math.min(Math.max(level, 0), MATERIAL.length - 1)];
+  const hl = len / 2, hh = h / 2;
+  const [o0, o1, i1, i0] = poly ?? [[-hl, -hh], [hl, -hh], [hl, hh], [-hl, hh]];
+  const lerp = (a: Corner, b: Corner, t: number): Corner => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+  const pts = (...q: Corner[]) => q.map((c) => `${c[0].toFixed(1)},${c[1].toFixed(1)}`).join(' ');
+  const outer = (f: number) => lerp(o0, o1, f), inner = (f: number) => lerp(i0, i1, f);
+  const at = (f: number, d: number) => lerp(outer(f), inner(f), d); // along the block, d deep (0 outer edge, 1 inner)
+  const mossAt = rot === 2 ? [0.2, 0.5, 0.78] : rot === 1 ? [0.35, 0.72] : [];
+  const u = Math.min(h, 24); // moss and bites stay small even on a big stone
+  const mossR = u * (rot === 2 ? 0.34 : 0.26);
+  if (gone) {
+    return (
+      <g className="plankart">
+        <polygon className="hit" points={pts(o0, o1, i1, i0)} />
+        <polygon points={pts(at(0.06, 0.07), at(0.94, 0.07), at(0.94, 0.93), at(0.06, 0.93))} fill="#fff6f1" fillOpacity=".4" stroke="#c8553d" strokeWidth="1.6" strokeDasharray="5 4" strokeLinejoin="round" />
+        <text x={at(0.5, 0.5)[0]} y={at(0.5, 0.5)[1] + h * 0.27} textAnchor="middle" className="hole" fontSize={h * 0.8}>?</text>
+      </g>
+    );
+  }
+  return (
+    <g className="plankart">
+      <polygon className="hit" points={pts(o0, o1, i1, i0)} />
+      <g filter="url(#paint)">
+        <polygon points={pts(o0, o1, i1, i0)} fill={m.base} stroke={m.base} strokeWidth="2" strokeLinejoin="round" />
+        <polygon points={pts(o0, o1, at(1, 0.36), at(0, 0.36))} fill={m.light} opacity=".75" />
+        {m.grain && <polygon points={pts(o0, o1, i1, i0)} fill="url(#woodgrain)" />}
+        {level === 0 && <ellipse cx={at(0.3, 0.62)[0]} cy={at(0.3, 0.62)[1]} rx={h * 0.2} ry={h * 0.13} fill="#8a6f48" opacity=".35" />}
+        {level === 2 && <path d={`M${at(0.36, 0.04).join(' ')} L${at(0.44, 0.4).join(' ')} L${at(0.39, 0.62).join(' ')} L${at(0.47, 0.96).join(' ')}`} fill="none" stroke="#9a9fa4" strokeWidth={Math.max(1, h * 0.05)} strokeLinecap="round" strokeLinejoin="round" />}
+        {level === 3 && [0.07, 0.93].flatMap((f) => [0.22, 0.78].map((d) => <circle key={`${f}${d}`} cx={at(f, d)[0]} cy={at(f, d)[1]} r={Math.max(1.4, h * 0.07)} fill="#c5cfd8" />))}
+        {level === 4 && <path d={`M${at(0.14, 0.26).join(' ')} L${at(0.58, 0.18).join(' ')}`} stroke="#fff7d6" strokeWidth={h * 0.12} strokeLinecap="round" opacity=".85" />}
+        {Array.from({ length: joints }, (_, j) => {
+          const f = (j + 1) / (joints + 1), a = outer(f), b = inner(f);
+          return <path key={j} d={`M${a.join(' ')} L${b.join(' ')}`} stroke={m.seam} strokeWidth={Math.max(1.4, h * 0.04)} strokeLinecap="round" />;
+        })}
+        {mossAt.map((f, i) => <ellipse key={i} cx={at(f, [0.16, 0.7, 0.4, 0.84, 0.25][i % 5])[0]} cy={at(f, [0.16, 0.7, 0.4, 0.84, 0.25][i % 5])[1]} rx={mossR * 1.4} ry={mossR} fill={MOSS[i % 3]} opacity=".9" />)}
+        {rot === 2 && [0.28, 0.7].map((f, i) => {
+          const c = i ? at(f, 1) : at(f, 0), t = i ? -1 : 1;
+          return <path key={f} d={`M${f1(c[0] - u * 0.4)} ${f1(c[1])} l${f1(u * 0.4)} ${f1(t * u * 0.5)} l${f1(u * 0.4)} ${f1(-t * u * 0.5)}Z`} fill="#d3e7e3" />;
+        })}
+      </g>
+      {open && (
+        <g>
+          <polygon points={pts(at(0.26, 0.16), at(0.74, 0.16), at(0.74, 0.84), at(0.26, 0.84))} fill="#e9f4f1" stroke="#c8553d" strokeWidth="1.5" strokeDasharray="5 4" strokeLinejoin="round" />
+          <text x={at(0.5, 0.5)[0]} y={at(0.5, 0.5)[1] + h * 0.27} textAnchor="middle" className="hole" fontSize={h * 0.8}>?</text>
+        </g>
+      )}
+    </g>
+  );
+}
+
+/** A plain rectangular block, for icons and the overview. */
+export function MaterialPlank({ level, rot = 0, open = false, len, h = 16 }: { level: number; rot?: 0 | 1 | 2; open?: boolean; len: number; h?: number }) {
+  return <MaterialBlock level={level} rot={rot} open={open} len={len} h={h} />;
+}
+
+/** A material plank as a small inline icon, for legends and lists. Decorative: say it in text too. */
+export function MaterialIcon({ level, rot = 0, size = 34 }: { level: number; rot?: 0 | 1 | 2; size?: number }) {
+  return (
+    <svg className="plankicon" viewBox="-20 -11 40 22" width={size} height={size * 0.55} aria-hidden>
+      <MaterialPlank level={level} rot={rot} len={36} h={15} />
+    </svg>
+  );
+}
+
 const FUR = '#86bd94', FUR_DEEP = '#5f9f74', FUR_LIGHT = '#a9d6b2', FACE = '#b5e3bd', INK = '#26352d', EAR = '#a6dcae';
 
 // A row of pointed teeth along a shallow arc. `dir` 1 hangs them down, -1 points them up.

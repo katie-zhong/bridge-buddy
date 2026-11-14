@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { api, go, session, MATERIALS, profile, signIn, DEMO_NAME, useAsync, when, Switch, type Home, type User } from './ui';
-import { Troll } from './Troll';
-import { BridgeMap, rotWord } from './Map';
+import { api, go, session, MATERIALS, profile, signIn, switchDemoRole, clearDemoTokens, DEMO_NAME, useAsync, when, Switch, type Home, type User } from './ui';
+import { MaterialIcon, Troll } from './Troll';
+import { BridgeView, ForestMap, MapLegend, rotWord } from './Map';
 import { Renovate } from './Renovate';
 import { Welcome } from './Welcome';
 import { LectureView, NewLecture } from './Lecture';
@@ -33,7 +33,7 @@ function Login({ onDone }: { onDone: () => void }) {
     if (!who) return;
     setBusy(true);
     try {
-      await signIn(who, role);
+      await signIn(who, role, demo);
       profile.set({ name: who, role, demo });
       go(role === 'instructor' ? '/teach' : '/');
       onDone();
@@ -67,7 +67,7 @@ function useDemoSignIn(authed: boolean, onDone: () => void) {
   const [pending, setPending] = useState(!!p?.demo);
   useEffect(() => {
     if (!p?.demo) return;
-    signIn(p.name, p.role)
+    signIn(p.name, p.role, true)
       .then(() => { if (p.role === 'instructor' && !location.hash) go('/teach'); onDone(); })
       .catch(() => setPending(false)); // server unreachable: fall back to the login screen
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -83,55 +83,65 @@ function applyPrefs(u?: User) {
   root.dataset.calm = s.calm ? '1' : '';
 }
 
+const FlameIcon = () => <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden><path d="M10 2c1 4 6 6 6 11a6 6 0 0 1-12 0c0-3 2-4 3-6 0 2 1 3 2 3 0-3-1-5 1-8z" fill="#e2a43b" filter="url(#paint)" /></svg>;
+
 const date = (ts: number) => new Date(ts * 1000).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
 
-function Today({ home }: { home: Home }) {
+function Today({ home, courseId }: { home: Home; courseId?: string }) {
   const { courses, streak, open, deadlines } = home;
-  const [adding, setAdding] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
+  const course = courses.find((c) => c.id === courseId);
   const planks = courses.flatMap((c) => c.planks);
   const rotting = planks.filter((p) => p.rot > 0).length, gaps = planks.filter((p) => p.open > 0).length;
   const mood = gaps || rotting ? 'think' : 'idle';
   const line = gaps ? `${gaps} ${gaps === 1 ? 'plank has a gap' : 'planks have gaps'}.`
     : rotting ? `${rotting} ${rotting === 1 ? 'plank is' : 'planks are'} rotting.`
     : 'Your bridges are holding.';
-  const addTo = courses.find((c) => c.id === adding);
   const now = Date.now() / 1000;
+  const shown = course ? deadlines.filter((d) => d.course_id === course.id) : deadlines;
   return (
     <main className="page">
       <div className="between wrap maphead">
-        <h1>Hi {home.user.name}. {line}</h1>
-        <div className={`streak ${streak.today ? 'lit' : ''}`} title="Days in a row you mended a gap or solved a practice problem. Logging in does not count.">
-          <strong>{streak.days}</strong><span>day{streak.days === 1 ? '' : 's'} building</span>
+        {course ? (
+          <div>
+            <button className="link backlink" onClick={() => go('/')}>‹ All bridges</button>
+            <h1>{course.code} · {course.title}</h1>
+          </div>
+        ) : <h1>Hi {home.user.name}. {line}</h1>}
+        <div className="herochips">
+          {course && <button className="ghost" onClick={() => setAdding(true)}>+ Add a lecture</button>}
+          <span className={`pill streak ${streak.today ? 'lit' : ''}`} title="Days in a row you mended a gap or solved a practice problem. Logging in does not count."><FlameIcon />{streak.days} day{streak.days === 1 ? '' : 's'}</span>
         </div>
       </div>
-      <BridgeMap courses={courses} open={open} mood={mood} onAdd={setAdding} />
-      <ul className="legend">
-        {MATERIALS.map((m, i) => <li key={m}><i className={`sw m${i}`} />{m}</li>)}
-        <li><i className="sw rotsw" />Rotting</li>
-        <li><i className="sw gapsw" />Gap flagged</li>
-      </ul>
+      {course
+        ? <BridgeView key={course.id} course={course} open={open} mood={mood} />
+        : <ForestMap courses={courses} mood={mood} onOpen={(id) => go(`/bridge/${id}`)} />}
+      <div className="between wrap legendrow">
+        <MapLegend />
+        <span className="fine">{course ? 'Hover a plank to see the lecture' : 'Hover a bridge for the subject, click to open it'} · Demo: sample progress</span>
+      </div>
 
       <h2 className="sectionhead">Coming up</h2>
       <ul className="todo officehours"><OfficeHoursRow /></ul>
       <div className="deadlines">
-        {deadlines.map((d) => {
-          const course = courses.find((c) => c.id === d.course_id);
+        {shown.map((d) => {
+          const owner = courses.find((c) => c.id === d.course_id);
           const covered = planks.filter((p) => d.covers.includes(p.lecture_id));
           return (
             <article key={d.id} className="card deadline">
               <div className="between">
-                <span className={`tag ${d.due_at - now < 2.5 * 86400 ? 'soon' : ''}`}>{when(d.due_at)}</span>
+                <span className={`tag day ${d.due_at - now < 2.5 * 86400 ? 'soon' : ''}`}>{when(d.due_at)}</span>
                 <small>{date(d.due_at)}</small>
               </div>
               <h3>{d.title}</h3>
-              <p className="muted">{course?.code} · {d.kind}{d.weight ? ` · ${d.weight}% of grade` : ''} · from {d.source}</p>
+              <p className="muted">{owner?.code} · {d.kind}{d.weight ? ` · ${d.weight}% of grade` : ''} · from {d.source}</p>
               <p>{d.detail}</p>
               {covered.length > 0 && (
                 <div className="covers">
                   <small>Planks it covers</small>
                   {covered.map((p) => (
                     <button key={p.lecture_id} className={`cover ${p.rot || p.open ? 'weak' : ''}`} onClick={() => go(`/renovate/${p.lecture_id}`)} title={`Renovate ${p.title}`}>
-                      <i className={`sw m${p.level}`} />{p.title.split(':')[0]}
+                      <MaterialIcon level={p.level} rot={p.rot} size={30} />{p.title.split(':')[0]}
                       <span>{[p.open ? 'gap' : '', rotWord(p).toLowerCase()].filter(Boolean).join(', ') || MATERIALS[p.level].toLowerCase()}</span>
                     </button>
                   ))}
@@ -141,32 +151,8 @@ function Today({ home }: { home: Home }) {
           );
         })}
       </div>
-      {addTo && <NewLecture course={addTo} onClose={() => setAdding(null)} />}
+      {course && adding && <NewLecture course={course} onClose={() => setAdding(false)} />}
     </main>
-  );
-}
-
-/** Demo mode only: flip between the student and instructor views as the same person. */
-function RoleSwitch({ role, reload }: { role: User['role']; reload: () => void }) {
-  const [busy, setBusy] = useState(false);
-  const flip = async (toInstructor: boolean) => {
-    const p = profile.get();
-    if (!p) return;
-    const next = toInstructor ? 'instructor' : 'student';
-    setBusy(true);
-    try {
-      await signIn(p.name, next);
-      profile.set({ ...p, role: next });
-      go(next === 'instructor' ? '/teach' : '/');
-      reload();
-    } finally { setBusy(false); }
-  };
-  return (
-    <span className="roleswitch" title="Demo mode: switch between the student and instructor views">
-      <span className={role === 'student' ? 'on' : ''} aria-hidden>Student</span>
-      <Switch checked={role === 'instructor'} disabled={busy} onChange={flip}><span className="sr">Instructor view</span></Switch>
-      <span className={role === 'instructor' ? 'on' : ''} aria-hidden>Instructor</span>
-    </span>
   );
 }
 
@@ -175,6 +161,26 @@ function GearIcon() {
     <svg viewBox="0 0 24 24" aria-hidden>
       <path fill="currentColor" fillRule="evenodd" d="M10.3 2h3.4l.5 2.6c.6.2 1.2.5 1.7.9l2.5-.9 1.7 2.9-2 1.8c.1.6.1 1.2 0 1.8l2 1.8-1.7 2.9-2.5-.9c-.5.4-1.1.7-1.7.9l-.5 2.6h-3.4l-.5-2.6c-.6-.2-1.2-.5-1.7-.9l-2.5.9-1.7-2.9 2-1.8a5.6 5.6 0 0 1 0-1.8l-2-1.8 1.7-2.9 2.5.9c.5-.4 1.1-.7 1.7-.9zM12 8.6a3.4 3.4 0 1 0 0 6.8 3.4 3.4 0 0 0 0-6.8z" transform="translate(0 1)" />
     </svg>
+  );
+}
+
+/** Demo mode only: flip between the student and the teacher view. */
+function RoleSwitch({ role }: { role: User['role'] }) {
+  const [busy, setBusy] = useState(false);
+  const pick = async (r: User['role']) => {
+    if (r === role || busy) return;
+    setBusy(true);
+    try { await switchDemoRole(r); } catch { setBusy(false); }
+  };
+  return (
+    <div className="roleswitch" role="radiogroup" aria-label="Demo: view as">
+      <span className="tag">Demo</span>
+      {(['student', 'instructor'] as const).map((r) => (
+        <button key={r} type="button" role="radio" aria-checked={role === r} className={role === r ? 'on' : ''} disabled={busy} onClick={() => pick(r)}>
+          {r === 'student' ? 'Student' : 'Teacher'}
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -227,6 +233,7 @@ export function App() {
   const signOut = () => {
     const p = profile.get();
     if (p) profile.set({ ...p, demo: false }); // keep the name and role for next time, but show the login screen
+    clearDemoTokens();
     session.token = null; go('/'); location.reload();
   };
 
@@ -234,6 +241,7 @@ export function App() {
   if (!instructor && !h.user.settings.onboarded) screen = <Welcome home={h} reload={reload} />;
   else if (parts[0] === 'lecture') screen = <LectureView key={parts[1]} id={parts[1]} home={h} startAt={Number(new URLSearchParams(query).get('t')) || undefined} reload={reload} toast={setToast} />;
   else if (parts[0] === 'repair') screen = <><Today home={h} /><Repair id={parts[1]} user={h.user} onClose={() => { reload(); go('/'); }} /></>;
+  else if (parts[0] === 'bridge') screen = <Today home={h} courseId={parts[1]} />;
   else if (parts[0] === 'renovate') screen = <><Today home={h} /><Renovate id={parts[1]} onClose={() => { reload(); go('/'); }} /></>;
   else if (parts[0] === 'community') screen = <Community home={h} query={new URLSearchParams(query)} />;
   else if (parts[0] === 'settings' || parts[0] === 'help') screen = <SettingsPage home={h} section={parts[0] === 'help' ? 'help' : parts[1]} reload={reload} signOut={signOut} />;
@@ -248,8 +256,7 @@ export function App() {
         <nav aria-label="Main">
           {(instructor || h.user.settings.onboarded) && nav.map(([to, label]) => <a key={to} href={`#${to}`} aria-current={path === to ? 'page' : undefined}>{label}</a>)}
         </nav>
-        {h.ai === 'offline' && <span className="tag" title="No Claude API key on the server. Norbu answers from built-in course content.">Offline tutor</span>}
-        {profile.get()?.demo && <RoleSwitch role={h.user.role} reload={reload} />}
+        {profile.get()?.demo && <RoleSwitch role={h.user.role} />}
         <a className="gear" href="#/settings" aria-label="Settings" title="Settings" aria-current={parts[0] === 'settings' ? 'page' : undefined}><GearIcon /></a>
       </header>
       <div id="main">{screen}</div>

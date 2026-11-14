@@ -61,7 +61,7 @@ when it was built; if a call fails, Bridgeway falls back to the offline tutor an
 
 | Area | What it does |
 |---|---|
-| Map (home) | One bridge per course, one plank per lecture. Hover a plank to see the lecture and renovate it. Planks rot if left alone while newer lectures arrive. "+" adds a lecture. Deadlines from every source below, with the planks each one covers. |
+| Map (home) | A forest with one lake and one bridge per course. Hover a bridge for the subject, click to open it, then hover a plank to see the lecture and renovate it. Planks rot if left alone while newer lectures arrive. Deadlines from every source below, with the planks each one covers. New accounts start with sample progress (demo) so every material and rot level shows; Settings can reload or clear it. |
 | Lecture | Timestamped transcript. Press **F** to flag. Ask a question about the current moment without typing context. Questions and flags collapse into the margin; mended ones fold into one line of your notes. |
 | Live | "Sit in on it live" replays the demo lecture as if live. "+" on a bridge records a real lecture from your microphone (Chrome or Edge) or takes a Panopto caption file (.vtt/.srt). |
 | Mend a gap | Source passage → explanation with a Hint / Worked example / Full walkthrough dial → riddle graded on understanding, not spelling. |
