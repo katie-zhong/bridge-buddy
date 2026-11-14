@@ -77,3 +77,29 @@ test('transcripts: Panopto captions and plain text', () => {
   assert.equal(parseTranscript('Just one short sentence.').length, 1);
   assert.equal(parseTranscript('   ').length, 0);
 });
+
+test('picking a struggle switches on its starter strategy once, and bad settings are refused', async () => {
+  const t = await login('Ola');
+  const me = (await call(t, '/me', 'PATCH', { struggles: ['attention', 'reading'] })).data;
+  assert.equal(me.settings.checkpoints, true); // attention starter: ten-minute checkpoints
+  assert.equal(me.settings.readAloud, true); // reading starter: listen while you read
+  let active = (await call(t, '/strategies')).data.strategies.filter((s) => s.active).map((s) => s.id);
+  assert.deepEqual(active.sort(), ['checkpoints', 'listen']);
+
+  // Turning a starter off sticks: re-picking the struggle does not switch it back on.
+  await call(t, '/strategies/checkpoints', 'POST', { active: false });
+  await call(t, '/me', 'PATCH', { struggles: ['reading'] });
+  await call(t, '/me', 'PATCH', { struggles: ['reading', 'attention'] });
+  active = (await call(t, '/strategies')).data.strategies.filter((s) => s.active).map((s) => s.id);
+  assert.deepEqual(active, ['listen']);
+
+  // With recommendations off, nothing is switched on.
+  await call(t, '/me', 'PATCH', { settings: { recs: false } });
+  await call(t, '/me', 'PATCH', { struggles: ['reading', 'attention', 'numbers'] });
+  assert.ok(!(await call(t, '/strategies')).data.strategies.find((s) => s.id === 'worked').active);
+
+  const ok = await call(t, '/me', 'PATCH', { settings: { replaySpeed: true, speed: 1.5, wordHighlight: true } });
+  assert.equal(ok.data.settings.speed, 1.5);
+  assert.equal((await call(t, '/me', 'PATCH', { settings: { speed: 9 } })).status, 400);
+  assert.equal((await call(t, '/me', 'PATCH', { settings: { isAdmin: true } })).status, 400);
+});

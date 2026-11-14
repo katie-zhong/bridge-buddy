@@ -26,6 +26,7 @@ docs/SPEC.md     product + technical specification
 ```
 
 Directory-specific rules: `server/CLAUDE.md`, `src/CLAUDE.md`.
+Design and UI copy: the `noor-design` skill in `.claude/skills/noor-design/` (load it before UI work).
 
 ## Commands (run from the repo root)
 

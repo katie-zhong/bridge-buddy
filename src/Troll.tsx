@@ -1,6 +1,91 @@
 import { go, type Plank } from './ui';
 
 export type Mood = 'idle' | 'happy' | 'think';
+export type PlankState = Plank['state'];
+
+/**
+ * Painterly look, defined once for the whole app (rendered in main.tsx).
+ * - `paint`: soft wobbly edges plus pigment granulation, for small shapes (planks, Noor).
+ * - `paint-wide`: a looser wobble for scenery (hills, cliffs, water).
+ * - `woodgrain`: thin streaks laid over a plank's base colour.
+ */
+export function PaintDefs() {
+  return (
+    <svg width="0" height="0" aria-hidden style={{ position: 'absolute' }}>
+      <defs>
+        <filter id="paint" x="-8%" y="-8%" width="116%" height="116%">
+          <feTurbulence type="fractalNoise" baseFrequency=".045" numOctaves="2" seed="3" result="wobble" />
+          <feDisplacementMap in="SourceGraphic" in2="wobble" scale="2.6" result="shape" />
+          <feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="8" result="speck" />
+          <feColorMatrix in="speck" values=".3 0 0 0 .76  .3 0 0 0 .76  .3 0 0 0 .76  0 0 0 0 1" result="pigment" />
+          <feBlend in="shape" in2="pigment" mode="multiply" result="tinted" />
+          <feComposite in="tinted" in2="shape" operator="in" />
+        </filter>
+        <filter id="paint-wide" x="-5%" y="-5%" width="110%" height="110%">
+          <feTurbulence type="fractalNoise" baseFrequency=".018" numOctaves="2" seed="5" result="wobble" />
+          <feDisplacementMap in="SourceGraphic" in2="wobble" scale="7" result="shape" />
+          <feTurbulence type="fractalNoise" baseFrequency=".7" numOctaves="2" seed="2" result="speck" />
+          <feColorMatrix in="speck" values=".22 0 0 0 .82  .22 0 0 0 .82  .22 0 0 0 .82  0 0 0 0 1" result="pigment" />
+          <feBlend in="shape" in2="pigment" mode="multiply" result="tinted" />
+          <feComposite in="tinted" in2="shape" operator="in" />
+        </filter>
+        <pattern id="woodgrain" width="72" height="14" patternUnits="userSpaceOnUse">
+          <path d="M0 3.5 Q18 1.5 36 4 T72 3.5 M0 9 Q22 11.5 40 8.5 T72 9.5 M10 12.5 Q30 11 52 12.8" fill="none" stroke="#5c3b1e" strokeWidth=".9" strokeLinecap="round" opacity=".45" />
+        </pattern>
+      </defs>
+    </svg>
+  );
+}
+
+// Every plank is wood. Its stain says where it is in the repair: bare, patched, sealed.
+const WOOD: Record<Exclude<PlankState, 'gap'>, { base: string; light: string }> = {
+  plain: { base: '#d6ae7b', light: '#e8c99c' },
+  mended: { base: '#e3a94c', light: '#f2c877' },
+  proven: { base: '#6fa77c', light: '#8fc096' },
+};
+
+/** One plank, centred on (0, 0). A gap is the hole where the plank should be. */
+export function PlankArt({ state, len, h = 16 }: { state: PlankState; len: number; h?: number }) {
+  const x = -len / 2, y = -h / 2;
+  if (state === 'gap') {
+    return (
+      <g className="plankart">
+        <rect className="hit" x={x} y={y} width={len} height={h} rx="4" />
+        <rect x={x + 1} y={y + 1} width={len - 2} height={h - 2} rx="4" fill="#c8553d14" stroke="#c8553d" strokeWidth="1.4" strokeDasharray="5 4" />
+        <text y={h * 0.3} textAnchor="middle" className="hole" fontSize={h * 0.85}>?</text>
+      </g>
+    );
+  }
+  const w = WOOD[state];
+  return (
+    <g className="plankart">
+      <rect className="hit" x={x} y={y} width={len} height={h} rx="4" />
+      <g filter="url(#paint)">
+        <rect x={x} y={y} width={len} height={h} rx="4" fill={w.base} />
+        <rect x={x + 2} y={y + 1.5} width={len - 4} height={h * 0.38} rx="3" fill={w.light} opacity=".7" />
+        <rect x={x} y={y} width={len} height={h} rx="4" fill="url(#woodgrain)" />
+        <ellipse cx={x + len * 0.68} cy={y + h * 0.58} rx={h * 0.22} ry={h * 0.14} fill="#7a5532" opacity=".35" />
+      </g>
+      {state === 'mended' && (
+        // the repair: a short batten nailed across the crack
+        <g filter="url(#paint)">
+          <rect x={-h * 0.45} y={y - 1.5} width={h * 0.9} height={h + 3} rx="2" fill="#f6dfae" />
+          <circle cx="0" cy={y + 2.6} r="1.3" fill="#8a6a45" /><circle cx="0" cy={-y - 2.6} r="1.3" fill="#8a6a45" />
+        </g>
+      )}
+      {state === 'proven' && <path d={`M${-h * 0.36} 0 l${h * 0.25} ${h * 0.28} l${h * 0.5} ${-h * 0.56}`} fill="none" stroke="#fffaf0" strokeWidth={h * 0.17} strokeLinecap="round" strokeLinejoin="round" />}
+    </g>
+  );
+}
+
+/** A plank as an inline icon, for legends and lists. Decorative: say the state in text next to it. */
+export function PlankIcon({ state, size = 34 }: { state: PlankState; size?: number }) {
+  return (
+    <svg className="plankicon" viewBox="-20 -11 40 22" width={size} height={size * 0.55} aria-hidden>
+      <PlankArt state={state} len={36} h={15} />
+    </svg>
+  );
+}
 
 const FUR = '#86bd94', FUR_DEEP = '#5f9f74', FUR_LIGHT = '#a9d6b2', FACE = '#fff4e4', INK = '#33423a', BLUSH = '#f4a9a0';
 
@@ -22,6 +107,7 @@ export function TrollArt({ mood = 'idle' }: { mood?: Mood }) {
   return (
     <g className={`troll ${mood}`}>
       <ellipse cx="60" cy="115" rx="27" ry="4" fill="#000" opacity=".12" />
+      <g filter="url(#paint)">
       {/* ears */}
       <g className="ear-l">
         <path d="M40 38 C29 26 26 9 33 2 C43 7 52 20 55 33 Z" fill={FUR} />
@@ -41,7 +127,13 @@ export function TrollArt({ mood = 'idle' }: { mood?: Mood }) {
       {/* fluffy head */}
       <path d="M60 24 C83 24 98 39 99 56 L106 54 L101 61 L107 65 L99 68 C94 82 79 90 60 90 C41 90 26 82 21 68 L13 65 L19 61 L14 54 L21 56 C22 39 37 24 60 24 Z" fill={FUR} />
       <path d="M52 26 L56 19 L60 25 L64 19 L68 26 Z" fill={FUR} />
+      {/* watercolour shading: light from the top left, a deeper wash low on the right */}
+      <path d="M30 44 C36 31 50 26 62 27 C48 32 38 40 33 52 Z" fill={FUR_LIGHT} opacity=".8" />
+      <path d="M99 60 C96 77 82 88 62 90 C80 84 92 72 96 56 Z" fill={FUR_DEEP} opacity=".55" />
+      <path d="M44 30 l2 -4 M70 28 l2 -4 M84 38 l3 -3 M36 38 l-2 -3" stroke={FUR_DEEP} strokeWidth="1.6" strokeLinecap="round" opacity=".6" />
       <ellipse cx="60" cy="60" rx="31" ry="24" fill={FACE} />
+      <ellipse cx="52" cy="50" rx="18" ry="9" fill="#fff" opacity=".45" />
+      </g>
       {/* eyes */}
       {happy ? (
         <>
@@ -71,6 +163,9 @@ export function TrollArt({ mood = 'idle' }: { mood?: Mood }) {
           <path d={teeth(43, 77, happy ? 68 : 69, 1.3, 8, 4.6)} fill="#fff" />
         </>
       )}
+      {/* the snaggletooth: one bottom tooth that pokes up over the lip, off-centre */}
+      <path d={think ? 'M50.4 74.6 Q51 70 52.6 66.4 Q55 70 56.4 74.3 Z' : happy ? 'M48.6 78.6 Q49.2 72.6 51 67.2 Q53.4 72.4 54.6 78.3 Z' : 'M49.2 77.4 Q49.8 71.6 51.6 66.6 Q54 71.6 55.2 77.1 Z'} fill="#fffaf0" />
+      <path d={think ? 'M52.6 66.4 Q55 70 56.4 74.3 L54.8 74.4 Z' : happy ? 'M51 67.2 Q53.4 72.4 54.6 78.3 L53.1 78.4 Z' : 'M51.6 66.6 Q54 71.6 55.2 77.1 L53.7 77.2 Z'} fill="#e6d6bc" />
     </g>
   );
 }
@@ -97,24 +192,29 @@ export function Bridge({ planks, examLabel, examIn, mood }: { planks: Plank[]; e
         <linearGradient id="sky" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="#cfe9ee" /><stop offset="1" stopColor="#f6f0dd" /></linearGradient>
         <linearGradient id="water" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="#7cc4c9" /><stop offset="1" stopColor="#4c9aa6" /></linearGradient>
         <linearGradient id="earth" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="#b79a78" /><stop offset="1" stopColor="#8c7359" /></linearGradient>
-        <linearGradient id="wood" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="#dcb98a" /><stop offset="1" stopColor="#c19a68" /></linearGradient>
-      </defs>
+              </defs>
       <rect width="820" height="330" fill="url(#sky)" />
       <circle cx="640" cy="62" r="30" fill="#fff6d6" opacity=".9" />
+      <g filter="url(#paint-wide)">
       <path d="M0 215 C90 150 190 170 280 205 C380 150 470 150 560 200 C650 160 740 165 820 205 V330 H0 Z" fill="#bcdcc0" />
       <path d="M0 240 C120 200 220 215 330 236 C450 205 560 210 660 234 C730 220 780 222 820 230 V330 H0 Z" fill="#a3cfaa" />
       {/* river */}
       <rect x="0" y="262" width="820" height="68" fill="url(#water)" />
+      </g>
       <path className="ripple" d="M190 282 q14 -6 28 0 t28 0 M330 304 q14 -6 28 0 t28 0 M540 286 q14 -6 28 0 t28 0 M250 316 q10 -5 20 0 M610 310 q12 -5 24 0" fill="none" stroke="#fff" strokeOpacity=".55" strokeWidth="2.5" strokeLinecap="round" />
       {/* Noor on a rock under the bridge */}
-      <ellipse cx="410" cy="302" rx="70" ry="14" fill="#8f8a7c" />
-      <ellipse cx="410" cy="297" rx="62" ry="11" fill="#aaa596" />
+      <g filter="url(#paint)">
+        <ellipse cx="410" cy="302" rx="70" ry="14" fill="#8f8a7c" />
+        <ellipse cx="410" cy="297" rx="62" ry="11" fill="#aaa596" />
+      </g>
       <g transform="translate(359 198) scale(.85)"><TrollArt mood={mood} /></g>
       {/* cliffs */}
+      <g filter="url(#paint-wide)">
       <path d="M0 150 H150 C140 190 162 236 148 330 H0 Z" fill="url(#earth)" />
       <path d="M820 150 H670 C680 190 658 236 672 330 H820 Z" fill="url(#earth)" />
       <path d="M0 136 C60 128 116 132 158 148 C152 158 146 160 138 164 C96 150 50 150 0 158 Z" fill="#86bd7f" />
       <path d="M820 136 C760 128 704 132 662 148 C668 158 674 160 682 164 C724 150 770 150 820 158 Z" fill="#86bd7f" />
+      </g>
       {/* far rope and hangers */}
       <path d={path(ROPE, -7)} fill="none" stroke="#b9a184" strokeWidth="3" strokeLinecap="round" />
       {posts.map((x) => <line key={x} x1={x} y1={curve(ROPE, x)} x2={x} y2={curve(DECK, x) + 4} stroke="#a68c6c" strokeWidth="2" />)}
@@ -127,10 +227,8 @@ export function Bridge({ planks, examLabel, examIn, mood }: { planks: Plank[]; e
           <g key={p.lecture_id + p.concept} className={`plank ${p.state}`} role="link" tabIndex={0} aria-label={`${p.title}: ${WORDS[p.state]}`}
             transform={`translate(${(xa + xb) / 2} ${(ya + yb) / 2}) rotate(${angle})`} onClick={open} onKeyDown={(e) => e.key === 'Enter' && open()}>
             <title>{`${p.title}: ${WORDS[p.state]}`}</title>
-            <rect x={-len / 2} y="-8" width={len} height="16" rx="5" />
-            {p.state !== 'gap' && <path d={`M${-len / 2 + 8} -2 H${len / 2 - 10} M${-len / 2 + 14} 3 H${len / 2 - 20}`} className="grain" />}
-            {p.state === 'proven' && <path d="M-6 0 l4 4.5 l8 -9" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />}
-            {p.state === 'gap' && <text y="5" textAnchor="middle" className="hole">?</text>}
+            <PlankArt state={p.state} len={len} h={17} />
+            <rect className="ring" x={-len / 2 - 3} y="-11.5" width={len + 6} height="23" rx="7" />
           </g>
         );
       })}
@@ -141,10 +239,10 @@ export function Bridge({ planks, examLabel, examIn, mood }: { planks: Plank[]; e
       <rect x="109" y="78" width="18" height="9" rx="4" fill="#7d6245" /><rect x="693" y="78" width="18" height="9" rx="4" fill="#7d6245" />
       {/* start sign and exam flag */}
       <rect x="40" y="112" width="6" height="34" rx="3" fill="#7d6245" />
-      <rect x="10" y="88" width="68" height="28" rx="8" fill="#fff8ea" stroke="#7d6245" strokeWidth="2.5" />
+      <rect x="10" y="88" width="68" height="28" rx="8" fill="#fff8ea" filter="url(#paint)" />
       <text x="44" y="107" textAnchor="middle" className="sign">Week 1</text>
       <rect x="793" y="52" width="6" height="96" rx="3" fill="#7d6245" />
-      <path d="M794 58 H706 l11 16 l-11 16 H794 Z" fill="#c8553d" strokeLinejoin="round" stroke="#c8553d" strokeWidth="3" />
+      <path d="M794 58 H706 l11 16 l-11 16 H794 Z" fill="#c8553d" filter="url(#paint)" />
       <text x="756" y="79" textAnchor="middle" className="sign light">{examLabel}</text>
       <text x="760" y="182" textAnchor="middle" className="sign small">{examIn}</text>
     </svg>

@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { z } from 'zod';
 
 // ---- types -------------------------------------------------------------
@@ -6,7 +6,17 @@ export type Level = 'hint' | 'example' | 'walkthrough';
 export interface Settings {
   font?: 'atkinson' | 'lexend' | 'system'; size?: number; spacing?: number; calm?: boolean;
   level?: Level; focus?: boolean; checkpoints?: boolean; reminder?: string;
-  shareAggregates?: boolean; recs?: boolean; onboarded?: boolean;
+  shareAggregates?: boolean; recs?: boolean; onboarded?: boolean; readAloud?: boolean; dictation?: boolean;
+  /** Lecture transcript tools: show the replay speed control, and the chosen speed. */
+  replaySpeed?: boolean; speed?: Speed;
+  /** Lecture transcript tools: highlight the word being read during a replay. */
+  wordHighlight?: boolean;
+}
+export type Speed = 0.75 | 1 | 1.5 | 2;
+export const SPEEDS: Speed[] = [0.75, 1, 1.5, 2];
+export interface Strategy {
+  id: string; struggle: string; title: string; how: string; setting?: Settings; active: boolean; helpful: number | null;
+  stat: { used: number; with: number; without: number; demo: boolean } | null;
 }
 export interface User { id: string; name: string; role: 'student' | 'instructor'; settings: Settings; struggles: string[] }
 export interface Segment { id: string; idx: number; t_start: number; t_end: number; text: string; concept: string }
@@ -230,6 +240,27 @@ export function Modal({ title, onClose, children }: { title: string; onClose: ()
 
 export function OfflineNote({ error }: { error?: string }) {
   return <p className="fine">{error ? `${error}. ` : ''}Answered by the offline tutor (built-in course content), not Claude.</p>;
+}
+
+/** A small "?" that opens a short explanation. Escape or a second click closes it. */
+export function WhyTip({ label, children }: { label: string; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const id = useId();
+  const box = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const key = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    const click = (e: MouseEvent) => !box.current?.contains(e.target as Node) && setOpen(false);
+    window.addEventListener('keydown', key);
+    window.addEventListener('mousedown', click);
+    return () => { window.removeEventListener('keydown', key); window.removeEventListener('mousedown', click); };
+  }, [open]);
+  return (
+    <span className="why" ref={box}>
+      <button type="button" className="whybtn" aria-expanded={open} aria-controls={id} aria-label={label} title={label} onClick={() => setOpen(!open)}>?</button>
+      {open && <span id={id} role="note" className="whypop">{children}</span>}
+    </span>
+  );
 }
 
 export function Toggle({ checked, onChange, children }: { checked: boolean; onChange: (v: boolean) => void; children: ReactNode }) {

@@ -1,8 +1,11 @@
-import { useState } from 'react';
-import { api, go, LevelDial, Toggle, type Settings, type User } from './ui';
+import { useEffect, useState } from 'react';
+import { api, go, LevelDial, Toggle, type Home, type Settings } from './ui';
+import { WhatHelps } from './Strategies';
 
-export function SettingsPage({ user, reload, signOut }: { user: User; reload: () => void; signOut: () => void }) {
+export function SettingsPage({ home, section, reload, signOut }: { home: Home; section?: string; reload: () => void; signOut: () => void }) {
+  const user = home.user;
   const s = user.settings;
+  useEffect(() => { if (section === 'help') document.getElementById('what-helps')?.scrollIntoView({ block: 'start' }); }, [section]);
   const [confirm, setConfirm] = useState(false);
   const [perm, setPerm] = useState('Notification' in window ? Notification.permission : 'unsupported');
   const save = async (patch: Settings) => { await api('/me', 'PATCH', { settings: patch }); reload(); };
@@ -43,9 +46,16 @@ export function SettingsPage({ user, reload, signOut }: { user: User; reload: ()
             <div><p>Starting support level</p><LevelDial value={s.level || 'example'} onChange={(l) => save({ level: l })} /></div>
             <Toggle checked={!!s.focus} onChange={(v) => save({ focus: v })}>Focus view in lectures: hide the side panel and dim everything but the current passage</Toggle>
             <Toggle checked={!!s.checkpoints} onChange={(v) => save({ checkpoints: v })}>Checkpoint nudges during live lectures</Toggle>
-            <Toggle checked={s.recs !== false} onChange={(v) => save({ recs: v })}>Show "What helps" recommendations</Toggle>
             <button className="ghost" onClick={async () => { await save({ onboarded: false }); go('/'); }}>Show the welcome tour again</button>
           </section>
+
+          <section className="card stack">
+            <h2>Lecture transcript</h2>
+            <Toggle checked={!!s.replaySpeed} onChange={(v) => save({ replaySpeed: v })}>Replay speed control (0.75× to 2×)</Toggle>
+            <Toggle checked={!!s.wordHighlight} onChange={(v) => save({ wordHighlight: v })}>Highlight the current word during a replay</Toggle>
+          </section>
+
+          <WhatHelps home={home} reload={reload} />
 
           <section className="card stack">
             <h2>Daily reminder</h2>
