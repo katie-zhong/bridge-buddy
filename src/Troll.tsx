@@ -5,7 +5,7 @@ export type PlankState = Plank['state'];
 
 /**
  * Painterly look, defined once for the whole app (rendered in main.tsx).
- * - `paint`: soft wobbly edges plus pigment granulation, for small shapes (planks, Noor).
+ * - `paint`: soft wobbly edges plus pigment granulation, for small shapes (planks, Norbu).
  * - `paint-wide`: a looser wobble for scenery (hills, cliffs, water).
  * - `woodgrain`: thin streaks laid over a plank's base colour.
  */
@@ -101,7 +101,7 @@ function teeth(x0: number, x1: number, y: number, dip: number, n: number, len: n
   return `${d} Q${(x0 + x1) / 2} ${y + 2 * dip} ${x0} ${y} Z`;
 }
 
-/** Noor: a small furry bridge troll with tall ears and a toothy grin. Drawn in a 120 x 120 box. */
+/** Norbu: a small furry bridge troll with tall ears and a toothy grin. Drawn in a 120 x 120 box. */
 export function TrollArt({ mood = 'idle' }: { mood?: Mood }) {
   const happy = mood === 'happy', think = mood === 'think';
   return (
@@ -171,7 +171,7 @@ export function TrollArt({ mood = 'idle' }: { mood?: Mood }) {
 }
 
 export function Troll({ mood, size = 96 }: { mood?: Mood; size?: number }) {
-  return <svg viewBox="0 0 120 120" width={size} height={size} role="img" aria-label="Noor the bridge troll" className="trollsvg"><TrollArt mood={mood} /></svg>;
+  return <svg viewBox="0 0 120 120" width={size} height={size} role="img" aria-label="Norbu the bridge troll" className="trollsvg"><TrollArt mood={mood} /></svg>;
 }
 
 const WORDS = { plain: 'no gaps flagged', gap: 'missing, tap to mend', mended: 'mended, recall check pending', proven: 'proven by delayed recall' };
@@ -202,7 +202,7 @@ export function Bridge({ planks, examLabel, examIn, mood }: { planks: Plank[]; e
       <rect x="0" y="262" width="820" height="68" fill="url(#water)" />
       </g>
       <path className="ripple" d="M190 282 q14 -6 28 0 t28 0 M330 304 q14 -6 28 0 t28 0 M540 286 q14 -6 28 0 t28 0 M250 316 q10 -5 20 0 M610 310 q12 -5 24 0" fill="none" stroke="#fff" strokeOpacity=".55" strokeWidth="2.5" strokeLinecap="round" />
-      {/* Noor on a rock under the bridge */}
+      {/* Norbu on a rock under the bridge */}
       <g filter="url(#paint)">
         <ellipse cx="410" cy="302" rx="70" ry="14" fill="#8f8a7c" />
         <ellipse cx="410" cy="297" rx="62" ry="11" fill="#aaa596" />

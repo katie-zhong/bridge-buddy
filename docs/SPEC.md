@@ -1,4 +1,4 @@
-# Noor specification
+# Bridgeway specification
 
 > Source of truth for scope and decisions. Reconstructed from the code and README at commit
 > `93bd2f2` plus the repository setup decisions of 2026-11-14. Items marked **(open)** need a
@@ -28,17 +28,19 @@ The "bridge" metaphor: one plank per idea taught. States: plain → **gap** (fla
 
 | Area | Behaviour |
 |---|---|
-| Sign-in | First name + role (student / instructor). Stand-in for Microsoft Entra ID. Name and role are remembered in the browser and prefilled. **Demo mode** tickbox: name optional ("Guest"), skips the login screen on later visits, and silently signs back in as the same person if the server forgot the session (e.g. Vercel cold start). Signing out turns demo mode off. |
+| Sign-in | First name + role (student / instructor). Stand-in for Microsoft Entra ID. Name and role are remembered in the browser and prefilled. **Demo mode** switch: name optional ("Guest"), skips the login screen on later visits, and silently signs back in as the same person if the server forgot the session (e.g. Vercel cold start). Signing out turns demo mode off. In demo mode a **Student ⇄ Instructor** switch in the header flips between the two views as the same name (it signs in as that name with the other role). |
 | Welcome (first visit) | Students only, once (`settings.onboarded`). Step 1 asks what gets in the way (the same struggle chips as "What helps", skippable). Each struggle picked switches on its starter strategy (the one with the biggest week-later lift) and any setting it needs, unless recommendations are off or the student already chose for that struggle. Then a four-step tour of the loop (bridge → press F → mend → prove), ending in "Try it in a lecture" (opens the demo lecture) or "Go to my bridge". Can be replayed from Settings. |
 | Bridge (home) | A rope bridge whose deck is built from the planks themselves: one plank per idea, a flagged idea is a visible hole. A "Start here" card points to the demo lecture until the student has flagged something. Planks per idea, open gaps, due recalls, streak, flashcards due, unified deadline list. |
 | Lecture | Timestamped transcript; flag (F); ask about the current moment without typing context; questions/flags collapse into the margin; mended ideas fold into one line of notes; per-lecture notes; AI summary; generate flashcards; discussion posts (optionally anonymous). |
 | Live | Replay the demo lecture "as if live" (optional speed control 0.75×–2× and current-word highlight, both off by default and switched on in Settings → Lecture transcript); record a real lecture with browser speech recognition (Chrome/Edge); paste or upload Panopto captions (.vtt/.srt). |
 | Repair | Explanation dial, riddle, grading, note line + flashcard created on pass, recall scheduled. |
 | Practice | Week-later riddles; spaced flashcards (Leitner boxes 0/1/3/7/14 days); add/remove cards. |
-| What helps | A section of Settings (route `#/help` still opens it). Student picks what feels hard (never a diagnosis); strategies show week-later outcomes of peers who said the same, only for groups ≥ 5. Strategies that are on appear on the Bridge under "Strategies for you". Every strategy has a "?" that says, in two lines, why it was suggested and how to use it. |
+| What helps | Lives in Settings. **Profile** holds what feels hard (struggle chips, never a diagnosis) and every strategy surfaced for those struggles as a checkbox list (multi-select on/off). **What helps** (route `#/help`) shows week-later outcomes of peers who said the same, only for groups ≥ 5. Strategies that are on appear on the Bridge under "Strategies for you". Every strategy has a "?" that says, in two lines, why it was suggested and how to use it. |
+| Community | Tab. Pulled from the Brightspace syllabus (mock): teaching team (course instructor, TA, instructional support assistant / ISA) with emails, weekly office hours with Microsoft Teams links (next session also on the Bridge), and the syllabus's "who to contact" rules. Student picks what the message is about, sees the right person and the syllabus line that says so ("?"), and an Email button opens a prefilled `mailto:`. From a plank being mended, "Email your TA about this moment" adds the lecture, timestamp and passage. |
+| Read&Write | Mock of Texthelp Read&Write for students whose registered accommodations include a licence (not everyone). Licensed students get "Open in Read&Write" in a lecture's Notes tab: the generated notes (summary, mended-plank lines, own notes) with four highlighters that each carry a meaning and symbol (key idea ★, word to learn Aa, example e.g., ask about ?), an eraser, read aloud, and "collect highlights" into notes. Highlights are saved per lecture. The licence is simulated per student from Settings → Connected tools (labelled demo); it is never visible to instructors. |
 | Class view | Instructor: flags along the lecture timeline, results by idea, common questions. Groups only, never names. |
-| Settings | Opened from the gear icon at the top right. Typeface (Atkinson / Lexend / system), size, spacing, calm mode, focus view, explanation level, lecture transcript tools (replay speed, word highlight), What helps, daily reminder, data export, account deletion, opt out of class totals. |
-| Look | Flat, painterly "indie game" illustration: watercolour edges and pigment grain, no dark outlines, soft shadows instead of borders. Planks are wood: bare (sound), patched with a nailed batten (mended), green-sealed with a tick (proven), or a dashed hole with "?" (gap). Rules live in `.claude/skills/noor-design/SKILL.md`. |
+| Settings | Opened from the gear icon at the top right. Typeface (Atkinson / Lexend / system), size, spacing, calm mode, focus view, explanation level, Profile (struggles + strategy checkboxes), lecture transcript tools (replay speed, word highlight), What helps, Connected tools (Brightspace, Read&Write), daily reminder, data export, account deletion, opt out of class totals. |
+| Look | Flat, painterly "indie game" illustration: watercolour edges and pigment grain, no dark outlines, soft shadows instead of borders. Planks are wood: bare (sound), patched with a nailed batten (mended), green-sealed with a tick (proven), or a dashed hole with "?" (gap). Rules live in `.claude/skills/bridgeway-design/SKILL.md`. |
 | Speech | Read-aloud on explanations; "say it" dictation in answer boxes. |
 
 ## 4. Non-negotiable principles
@@ -112,10 +114,11 @@ scripts, Claude Code permissions and an auto-fix lint hook, `CLAUDE.md` files.
 | System | Provides | Status |
 |---|---|---|
 | Panopto | Recordings + caption files | Manual caption upload works; API connector pending credentials |
-| Brightspace | Assignment / quiz / reading due dates | Seeded demo deadlines |
+| Brightspace | Assignment / quiz / reading due dates; syllabus (teaching team, office hours, Teams links, who to contact) | Seeded demo deadlines; demo syllabus parsed by `parseSyllabus()` |
+| Read&Write (Texthelp) | Licence from registered accommodations (Accessibility Services) | Simulated per student (`accommodations` table) |
 | Microsoft 365 | Entra ID sign-in; opt-in Outlook dates | Name-only sign-in stand-in |
 
-All three plug in through `server/integrations.mjs` only.
+All of them plug in through `server/integrations.mjs` only.
 
 ## 8. Known gaps and open questions
 

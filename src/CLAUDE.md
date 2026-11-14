@@ -27,7 +27,7 @@ plain CSS in `styles.css` (CSS custom properties for the reading/accessibility s
   plain, short UI copy. Read-aloud and dictation must keep working where they exist.
 - **Browser APIs** (`speechSynthesis`, `SpeechRecognition`, `localStorage`) are feature-detected
   and wrapped so the app still works without them.
-- **Visual style.** Before any UI or mockup work, load the `noor-design` skill
-  (`.claude/skills/noor-design/SKILL.md`). In short: flat painterly assets (shared `#paint`
+- **Visual style.** Before any UI or mockup work, load the `bridgeway-design` skill
+  (`.claude/skills/bridgeway-design/SKILL.md`). In short: flat painterly assets (shared `#paint`
   filters), no dark outlines, wooden planks drawn only with `PlankArt`/`PlankIcon`, short copy
   with details behind a "?" (`WhyTip`).

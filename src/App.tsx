@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { api, go, session, profile, signIn, DEMO_NAME, useAsync, when, stamp, type Home, type User } from './ui';
+import { api, go, session, profile, signIn, DEMO_NAME, useAsync, when, stamp, Switch, type Home, type User } from './ui';
 import { Bridge, PlankIcon, Troll } from './Troll';
 import { Welcome } from './Welcome';
 import { LectureView, NewLecture } from './Lecture';
 import { Repair } from './Repair';
 import { Practice } from './Practice';
 import { ForYou } from './Strategies';
+import { Community, OfficeHoursCard } from './Community';
 import { Instructor } from './Instructor';
 import { SettingsPage } from './Settings';
 
@@ -41,20 +42,17 @@ function Login({ onDone }: { onDone: () => void }) {
   return (
     <main className="login">
       <Troll size={150} mood="happy" />
-      <h1>Noor</h1>
-      <p className="lede">Your Northbridge buddy. Flag what you miss in a lecture, keep listening, and mend the gap later.</p>
+      <h1>Bridgeway</h1>
+      <p className="lede">Norbu, your Northbridge buddy, helps you flag what you miss in a lecture, keep listening, and mend the gap later.</p>
       <form onSubmit={submit} className="card">
-        <label>What should Noor call you?{demo && <span className="muted"> (optional in demo mode)</span>}
+        <label>What should Norbu call you?
           <input value={name} onChange={(e) => setName(e.target.value)} autoFocus maxLength={40} placeholder="First name" />
         </label>
         <div className="dial" role="radiogroup" aria-label="I am a">
           <button type="button" role="radio" aria-checked={role === 'student'} className={role === 'student' ? 'on' : ''} onClick={() => setRole('student')}>I'm a student</button>
           <button type="button" role="radio" aria-checked={role === 'instructor'} className={role === 'instructor' ? 'on' : ''} onClick={() => setRole('instructor')}>I'm an instructor</button>
         </div>
-        <label className="toggle">
-          <input type="checkbox" checked={demo} onChange={(e) => setDemo(e.target.checked)} />
-          <span>Demo mode<small>Skip signing in. This browser remembers your name and role and opens Noor straight away next time.</small></span>
-        </label>
+        <Switch checked={demo} onChange={setDemo}>Demo mode</Switch>
         {error && <p className="error" role="alert">{error}</p>}
         <button className="primary" disabled={busy || (!demo && !name.trim())}>{demo && !name.trim() ? 'Try the demo' : 'Cross the bridge'}</button>
         <p className="fine">No diagnosis, paperwork or waitlist needed. In the pilot you sign in with your Northbridge Microsoft account.</p>
@@ -132,6 +130,7 @@ function Today({ home }: { home: Home }) {
       )}
 
       <ForYou home={home} />
+      <OfficeHoursCard />
 
       <div className="cols">
         <section className="card">
@@ -183,6 +182,30 @@ function Today({ home }: { home: Home }) {
   );
 }
 
+/** Demo mode only: flip between the student and instructor views as the same person. */
+function RoleSwitch({ role, reload }: { role: User['role']; reload: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const flip = async (toInstructor: boolean) => {
+    const p = profile.get();
+    if (!p) return;
+    const next = toInstructor ? 'instructor' : 'student';
+    setBusy(true);
+    try {
+      await signIn(p.name, next);
+      profile.set({ ...p, role: next });
+      go(next === 'instructor' ? '/teach' : '/');
+      reload();
+    } finally { setBusy(false); }
+  };
+  return (
+    <span className="roleswitch" title="Demo mode: switch between the student and instructor views">
+      <span className={role === 'student' ? 'on' : ''} aria-hidden>Student</span>
+      <Switch checked={role === 'instructor'} disabled={busy} onChange={flip}><span className="sr">Instructor view</span></Switch>
+      <span className={role === 'instructor' ? 'on' : ''} aria-hidden>Instructor</span>
+    </span>
+  );
+}
+
 function GearIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden>
@@ -202,7 +225,7 @@ export function App() {
   useEffect(() => applyPrefs(user), [user]);
   useEffect(() => { if (toast) { const t = setTimeout(() => setToast(''), 4500); return () => clearTimeout(t); } }, [toast]);
 
-  // Daily reminder at the time the student chose. Fires while Noor is open in a tab.
+  // Daily reminder at the time the student chose. Fires while Bridgeway is open in a tab.
   useEffect(() => {
     const at = user?.settings.reminder;
     if (!at) return;
@@ -216,7 +239,7 @@ export function App() {
       try { localStorage.setItem(key, '1'); } catch { /* ignore */ }
       const n = home.data?.open.length || 0;
       const msg = n ? `${n} plank${n === 1 ? '' : 's'} to mend. Five minutes is enough.` : 'Your bridge is holding. One riddle to keep it that way?';
-      if ('Notification' in window && Notification.permission === 'granted') new Notification('Noor', { body: msg });
+      if ('Notification' in window && Notification.permission === 'granted') new Notification('Bridgeway', { body: msg });
       else setToast(msg);
     };
     const id = setInterval(tick, 20000);
@@ -233,7 +256,7 @@ export function App() {
   const instructor = h.user.role === 'instructor';
   const nav = instructor
     ? [['/teach', 'Class view']]
-    : [['/', 'Bridge'], ['/practice', 'Practice']];
+    : [['/', 'Bridge'], ['/practice', 'Practice'], ['/community', 'Community']];
   const reload = () => home.reload();
   const signOut = () => {
     const p = profile.get();
@@ -246,6 +269,7 @@ export function App() {
   else if (parts[0] === 'lecture') screen = <LectureView key={parts[1]} id={parts[1]} home={h} startAt={Number(new URLSearchParams(query).get('t')) || undefined} reload={reload} toast={setToast} />;
   else if (parts[0] === 'repair') screen = <><Today home={h} /><Repair id={parts[1]} user={h.user} onClose={() => { reload(); history.length > 1 ? history.back() : go('/'); }} /></>;
   else if (parts[0] === 'practice') screen = <Practice reload={reload} />;
+  else if (parts[0] === 'community') screen = <Community home={h} query={new URLSearchParams(query)} />;
   else if (parts[0] === 'settings' || parts[0] === 'help') screen = <SettingsPage home={h} section={parts[0] === 'help' ? 'help' : parts[1]} reload={reload} signOut={signOut} />;
   else if (parts[0] === 'teach' || instructor) screen = <Instructor home={h} />;
   else screen = <Today home={h} />;
@@ -254,11 +278,12 @@ export function App() {
     <>
       <a className="skip" href="#main">Skip to content</a>
       <header className="top">
-        <button className="brand" onClick={() => go(instructor ? '/teach' : '/')}><Troll size={34} /> <span>Noor</span></button>
+        <button className="brand" onClick={() => go(instructor ? '/teach' : '/')}><Troll size={34} /> <span>Bridgeway</span></button>
         <nav aria-label="Main">
           {(instructor || h.user.settings.onboarded) && nav.map(([to, label]) => <a key={to} href={`#${to}`} aria-current={path === to ? 'page' : undefined}>{label}</a>)}
         </nav>
-        {h.ai === 'offline' && <span className="tag" title="No Claude API key on the server. Noor answers from built-in course content.">Offline tutor</span>}
+        {h.ai === 'offline' && <span className="tag" title="No Claude API key on the server. Norbu answers from built-in course content.">Offline tutor</span>}
+        {profile.get()?.demo && <RoleSwitch role={h.user.role} reload={reload} />}
         <a className="gear" href="#/settings" aria-label="Settings" title="Settings" aria-current={parts[0] === 'settings' ? 'page' : undefined}><GearIcon /></a>
       </header>
       <div id="main">{screen}</div>

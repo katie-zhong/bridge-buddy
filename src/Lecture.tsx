@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { api, go, stamp, useAsync, Tutor, LevelDial, Modal, OfflineNote, ReadAloud, Recognition, Toggle, SPEEDS, type Home, type Lecture, type Level, type Mark, type Post, type Segment, type Speed } from './ui';
+import { api, go, stamp, useAsync, Tutor, LevelDial, Modal, OfflineNote, ReadAloud, Recognition, Toggle, SPEEDS, type Home, type Lecture, type Level, type Mark, type Post, type ReadWrite, type Segment, type Speed } from './ui';
+import { ReadWritePanel } from './ReadWrite';
 import { PlankIcon } from './Troll';
 
-interface Data { lecture: Lecture; segments: Segment[]; marks: Mark[]; notes: { body: string; summary: string | null }; posts: Post[] }
+interface Data { lecture: Lecture; segments: Segment[]; marks: Mark[]; notes: { body: string; summary: string | null }; posts: Post[]; readwrite: ReadWrite }
 type Mode = 'recorded' | 'replay' | 'live';
 const REPLAY_MS = 3800;
 
@@ -26,7 +27,7 @@ export function NewLecture() {
           <label>Title<input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. PSYC 100, Lecture 7" /></label>
           <div className="choice">
             <h3>Record it live</h3>
-            <p className="muted">Noor listens through your microphone and writes the transcript as the lecture happens. {Recognition ? '' : 'Your browser does not support live transcription; Chrome or Edge do.'}</p>
+            <p className="muted">Norbu listens through your microphone and writes the transcript as the lecture happens. {Recognition ? '' : 'Your browser does not support live transcription; Chrome or Edge do.'}</p>
             <button className="primary" disabled={!Recognition} onClick={() => create(false)}>Start a live lecture</button>
           </div>
           <div className="choice">
@@ -133,7 +134,7 @@ export function LectureView({ id, home, startAt, reload, toast }: { id: string; 
       setInterim((pending.current.text + ' ' + tail).trim());
     };
     r.onend = () => { if (rec.current === r) { try { r.start(); } catch { /* already running */ } } };
-    r.onerror = (e: any) => { if (e.error === 'not-allowed') { toast('Noor needs microphone permission to transcribe.'); stopLive(); } };
+    r.onerror = (e: any) => { if (e.error === 'not-allowed') { toast('Bridgeway needs microphone permission to transcribe.'); stopLive(); } };
     rec.current = r;
     r.start();
     setMode('live');
@@ -272,7 +273,7 @@ export function LectureView({ id, home, startAt, reload, toast }: { id: string; 
         </button>
         <form className="ask" onSubmit={(e) => { e.preventDefault(); if (text.trim()) addMark(kind, text.trim()); }}>
           <select value={kind} onChange={(e) => setKind(e.target.value as any)} aria-label="What to add">
-            <option value="question">Ask Noor</option>
+            <option value="question">Ask Norbu</option>
             <option value="comment">Note to self</option>
           </select>
           <input value={text} onChange={(e) => setText(e.target.value)}
@@ -314,6 +315,7 @@ function Notes({ id, data, update, onTime, toast }: { id: string; data: Data; up
   const [body, setBody] = useState(data.notes.body || '');
   const [busy, setBusy] = useState('');
   const [offline, setOffline] = useState<string | null>(null);
+  const [rwOpen, setRwOpen] = useState(false);
   const first = useRef(true);
   useEffect(() => {
     if (first.current) { first.current = false; return; }
@@ -348,7 +350,19 @@ function Notes({ id, data, update, onTime, toast }: { id: string; data: Data; up
       <div className="actions">
         <button className="ghost small" disabled={!!busy} onClick={summarise}>{busy === 'summary' ? 'Writing…' : data.notes.summary ? 'Rewrite summary' : 'Write me a summary'}</button>
         <button className="ghost small" disabled={!!busy} onClick={cards}>{busy === 'cards' ? 'Making…' : 'Make flashcards'}</button>
+        {data.readwrite.licensed && <button className="ghost small rwopen" onClick={() => setRwOpen(true)}><span className="logo rw" aria-hidden>R</span> Open in Read&amp;Write</button>}
       </div>
+      {rwOpen && (
+        <ReadWritePanel lectureId={id} rw={data.readwrite} onClose={() => setRwOpen(false)}
+          parts={[
+            ...(data.notes.summary ? [{ title: 'Summary', text: data.notes.summary }] : []),
+            ...(mended.length ? [{ title: 'From mended planks', text: mended.map((m) => m.note_line).join(' ') }] : []),
+            ...(body.trim() ? [{ title: 'My notes', text: body }] : []),
+          ]}
+          onSaved={(highlights) => update({ readwrite: { licensed: true, highlights } })}
+          onAddToNotes={(t) => setBody((b) => `${b.trim()}${b.trim() ? '\n\n' : ''}${t}`)}
+        />
+      )}
       {data.notes.summary && (
         <div className="summary">
           <div className="between"><h3>Summary</h3><ReadAloud text={data.notes.summary} /></div>
