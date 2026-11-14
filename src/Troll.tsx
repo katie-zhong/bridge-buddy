@@ -86,6 +86,59 @@ export function PlankIcon({ state, size = 34 }: { state: PlankState; size?: numb
   );
 }
 
+// A lecture's plank on the map, from weakest to strongest. Same painterly treatment as the idea
+// planks above: soft wobbly edges, a lighter wash on top, no dark outlines.
+const MATERIAL: { base: string; light: string; grain: boolean }[] = [
+  { base: '#cdb894', light: '#e3d4b6', grain: true },  // driftwood
+  { base: '#b4824d', light: '#cf9f6a', grain: true },  // oak
+  { base: '#b7bcc0', light: '#d6d9db', grain: false }, // stone
+  { base: '#74828f', light: '#98a5b0', grain: false }, // iron
+  { base: '#e4b940', light: '#f6dc8a', grain: false }, // gold
+];
+const MOSS = ['#7a9e4e', '#668a3f', '#8bab5a'];
+
+/**
+ * One lecture's plank, centred on (0, 0). `level` is the material (0 to 4), `rot` is 0 sound,
+ * 1 starting to rot (moss), 2 rotten (moss and bites out of the edges). `open` cuts a dashed hole
+ * in it, for a flag that has not been mended yet.
+ */
+export function MaterialPlank({ level, rot = 0, open = false, len, h = 16 }: { level: number; rot?: 0 | 1 | 2; open?: boolean; len: number; h?: number }) {
+  const m = MATERIAL[Math.min(Math.max(level, 0), MATERIAL.length - 1)];
+  const x = -len / 2, y = -h / 2;
+  const mossAt = rot === 2 ? [0.12, 0.3, 0.5, 0.68, 0.88] : rot === 1 ? [0.2, 0.62, 0.84] : [];
+  return (
+    <g className="plankart">
+      <rect className="hit" x={x} y={y - 3} width={len} height={h + 6} rx="4" />
+      <g filter="url(#paint)">
+        <rect x={x} y={y} width={len} height={h} rx={level >= 2 ? 3 : 4.5} fill={m.base} />
+        <rect x={x + 2} y={y + 1.2} width={len - 4} height={h * 0.36} rx="3" fill={m.light} opacity=".75" />
+        {m.grain && <rect x={x} y={y} width={len} height={h} rx="4" fill="url(#woodgrain)" />}
+        {level === 0 && <ellipse cx={x + len * 0.3} cy={y + h * 0.62} rx={h * 0.2} ry={h * 0.13} fill="#8a6f48" opacity=".35" />}
+        {level === 2 && <path d={`M${x + len * 0.34} ${y + 1} l${h * 0.18} ${h * 0.4} l${-h * 0.14} ${h * 0.25} l${h * 0.2} ${h * 0.34}`} fill="none" stroke="#8d9398" strokeWidth={Math.max(1, h * 0.07)} strokeLinecap="round" strokeLinejoin="round" />}
+        {level === 3 && [x + h * 0.4, x + len - h * 0.4].map((cx) => <circle key={cx} cx={cx} cy="0" r={h * 0.12} fill="#c5cfd8" />)}
+        {level === 4 && <path d={`M${x + len * 0.14} ${y + h * 0.28} L${x + len * 0.55} ${y + h * 0.18}`} stroke="#fff7d6" strokeWidth={h * 0.13} strokeLinecap="round" opacity=".85" />}
+        {mossAt.map((f, i) => <ellipse key={i} cx={x + len * f} cy={y + h * (i % 2 ? 0.72 : 0.3)} rx={h * (rot === 2 ? 0.5 : 0.36)} ry={h * (rot === 2 ? 0.36 : 0.26)} fill={MOSS[i % 3]} opacity=".9" />)}
+        {rot === 2 && [0.28, 0.7].map((f, i) => <path key={f} d={`M${x + len * f - h * 0.4} ${i ? -y : y} l${h * 0.4} ${i ? -h * 0.55 : h * 0.55} l${h * 0.4} ${i ? h * 0.55 : -h * 0.55}Z`} fill="#8fc6cb" />)}
+      </g>
+      {open && (
+        <g>
+          <rect x={x + len * 0.28} y={y + 1} width={len * 0.44} height={h - 2} rx="3.5" fill="#fff6f1" opacity=".9" stroke="#c8553d" strokeWidth="1.3" strokeDasharray="4 3" />
+          <text y={h * 0.3} textAnchor="middle" className="hole" fontSize={h * 0.8}>?</text>
+        </g>
+      )}
+    </g>
+  );
+}
+
+/** A material plank as a small inline icon, for legends and lists. Decorative: say it in text too. */
+export function MaterialIcon({ level, rot = 0, size = 34 }: { level: number; rot?: 0 | 1 | 2; size?: number }) {
+  return (
+    <svg className="plankicon" viewBox="-20 -11 40 22" width={size} height={size * 0.55} aria-hidden>
+      <MaterialPlank level={level} rot={rot} len={36} h={15} />
+    </svg>
+  );
+}
+
 const FUR = '#86bd94', FUR_DEEP = '#5f9f74', FUR_LIGHT = '#a9d6b2', FACE = '#b5e3bd', INK = '#26352d', EAR = '#a6dcae';
 
 // A row of pointed teeth along a shallow arc. `dir` 1 hangs them down, -1 points them up.

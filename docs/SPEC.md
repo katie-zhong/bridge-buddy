@@ -23,8 +23,10 @@ dyscalculia, ADHD), diagnosed or not. Instructors cannot see where a class got l
    Each renovation rebuilds the plank in a stronger material.
 4. **Come back** before it rots: a plank nobody has worked on decays as newer lectures arrive.
 
-**The map.** Home is a top-down map: one river, one bridge per course, **one plank per lecture**.
-Lectures arrive on the bridge by themselves (Panopto in a pilot; seeded in this build).
+**The map.** Home is a top-down **forest with one lake per course**, and one bridge across each lake.
+Hover a bridge to see its subject, weakest plank and exam; click it to open that bridge (`#/bridge/:course`),
+where each lecture is one plank. Hover or focus a plank for the lecture and its actions. Lectures arrive on
+the bridge by themselves (Panopto in a pilot; seeded in this build).
 
 - **Material** (plank level 0 to 4): Driftwood → Oak → Stone → Iron → Gold. Passing
   `min(2, number of problems)` distinct practice problems since the last renovation raises
@@ -42,7 +44,7 @@ Lectures arrive on the bridge by themselves (Panopto in a pilot; seeded in this 
 |---|---|
 | Sign-in | First name + role (student / instructor). Stand-in for Microsoft Entra ID. Name and role are remembered in the browser and prefilled. **Demo mode** switch: name optional ("Guest"), skips the login screen on later visits, and silently signs back in as the same person if the server forgot the session (e.g. Vercel cold start). Signing out turns demo mode off. In demo mode a **Student ⇄ Instructor** switch in the header flips between the two views as the same name (it signs in as that name with the other role). |
 | Welcome (first visit) | Students only, once (`settings.onboarded`). (1) "What gets in the way?": six areas, each opening into three specific details; skippable. (2) Straight after: one suggested strategy per picked detail, with how and why, and a "Use this" switch. (3) A three-step tour (planks, press F, renovate). Replayable from Settings. |
-| Map (home) | The bridges, a legend, and "Coming up". Hover, focus or tap a plank: lecture title and date, material, rot, gaps, and buttons to renovate, mend a gap or open the lecture. A "+" at the end of each bridge adds a lecture (record live or bring a transcript) as a new plank. |
+| Map (home) | A forest with a lake and a bridge per course, a legend, and "Coming up". Hover a bridge for the subject; click to open it. On a bridge: hover, focus or tap a plank for the lecture title and date, material, rot, gaps, and buttons to renovate, mend a gap or open the lecture; "Add a lecture" (record live or bring a transcript) adds a plank. |
 | Coming up | Every deadline from every source as a card: date, course, kind, weight, source, what it involves, and the planks it covers with their state (tap one to renovate it). |
 | Lecture | Header timeline with a dot per idea that has a gap (red) or was patched (amber) and a ring for where you are; flagged passages tinted red with a flag icon; Ideas tab lists the lecture's ideas with Mend; Norbu speech bubble on flag; ask about the current moment without typing context; questions/flags collapse into the margin; mended gaps fold into one line of notes; per-lecture notes; AI summary; discussion posts (optionally anonymous). |
 | Live | Replay the demo lecture "as if live" (optional speed control 0.75×–2× and current-word highlight, both off by default and switched on in Settings → Lecture transcript); record a real lecture with browser speech recognition (Chrome/Edge); paste or upload Panopto captions (.vtt/.srt). |
@@ -51,10 +53,13 @@ Lectures arrive on the bridge by themselves (Panopto in a pilot; seeded in this 
 | Community | Tab. Pulled from the Brightspace syllabus (mock): teaching team (course instructor, TA, instructional support assistant / ISA) with emails, weekly office hours with Microsoft Teams links (next session also on the Bridge), and the syllabus's "who to contact" rules. Student picks what the message is about, sees the right person and the syllabus line that says so ("?"), and an Email button opens a prefilled `mailto:`. From a plank being mended, "Email your TA about this moment" adds the lecture, timestamp and passage. |
 | Read&Write | Mock of Texthelp Read&Write for students whose registered accommodations include a licence (not everyone). Licensed students get "Open in Read&Write" in a lecture's Notes tab: the generated notes (summary, mended-plank lines, own notes) with four highlighters that each carry a meaning and symbol (key idea ★, word to learn Aa, example e.g., ask about ?), an eraser, read aloud, and "collect highlights" into notes. Highlights are saved per lecture. The licence is simulated per student from Settings → Connected tools (labelled demo); it is never visible to instructors. |
 | Class view | Instructor: flags along the lecture timeline, results by idea, common questions, and the lecture's practice problems (add / remove, share right first try). Groups only, never names. |
+| Demo progress | New student accounts start with sample progress (`server/sample.mjs`): all five materials, planks rotting and rotten, one open gap, a two-day streak. Settings → Demo progress reloads it or clears it (`POST /api/demo/progress`). Labelled as demo data on the map. |
 | Settings | Opened from the gear icon at the top right. What gets in the way and the suggested strategies (with why, and how many students it helped, groups ≥ 5 only), with a switch to stop suggestions; typeface, size, spacing, calm mode, focus view, explanation level, lecture transcript tools (replay speed, word highlight), connected tools, daily reminder, data export, account deletion, opt out of class totals. |
 | Look | Flat, painterly "indie game" illustration: watercolour edges and pigment grain, no dark outlines, soft shadows instead of borders. Inside a lecture, ideas use `PlankArt`/`PlankIcon` (bare, patched, or a dashed hole). On the map, lecture planks are drawn by material in `Map.tsx`. |
 | Speech | Read-aloud on explanations; "say it" dictation in answer boxes. |
 | Norbu | The troll, green all over. Two fangs always show. After a mended gap or a solved problem Norbu grins with every tooth. |
+
+Every course names its exam "Midterm 1" (labels and deadline titles).
 
 Removed on 2026-11-14: the Practice tab, week-later recall riddles and
 flashcards (renovation replaces them), the "What helps" tab (moved into Settings and the

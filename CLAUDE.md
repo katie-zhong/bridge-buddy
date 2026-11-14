@@ -15,6 +15,7 @@ server/        Node HTTP API (plain node:http, no framework), ES modules (.mjs)
   ai.mjs         Claude tutor (@anthropic-ai/sdk, zod structured output) + offline fallback
   content.mjs    seeded demo course content
   integrations.mjs  Panopto / Brightspace / M365 boundary, transcript parser
+  sample.mjs     demo starter progress (every material, rot, a gap) for new student accounts
   *.test.mjs     node:test integration tests (in-memory DB)
 src/           React 18 SPA built with Vite, strict TypeScript
   ui.tsx         shared API types, the `api()` client, hooks, small components

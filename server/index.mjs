@@ -7,6 +7,7 @@ import * as ai from './ai.mjs';
 import { z } from 'zod';
 import { CONCEPTS, AREAS, DETAILS, SYLLABUS } from './content.mjs';
 import { parseSyllabus, parseTranscript } from './integrations.mjs';
+import { applySample, clearProgress } from './sample.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const MIN_GROUP = 5; // never show an aggregate about fewer than this many students
@@ -111,6 +112,7 @@ export function createHandler(db = openDb()) {
     const id = uid();
     const token = uid() + uid() + uid();
     run('insert into users(id,name,role,token,created_at) values(?,?,?,?,?)', id, name, role, token, now());
+    if (role === 'student' && body.sample !== false) applySample(db, id); // demo: start with sample progress
     return { token, user: pub(one('select * from users where id=?', id)) };
   }, { open: true });
 
@@ -212,6 +214,16 @@ export function createHandler(db = openDb()) {
     if (!parsed.success) throw fail(400, 'Those highlights are not valid');
     run('insert into rw_highlights(user_id,lecture_id,data) values(?,?,?) on conflict(user_id,lecture_id) do update set data=excluded.data', user.id, lecture.id, JSON.stringify(parsed.data.highlights));
     return { ok: true };
+  });
+
+  // Demo: swap this student's progress for the sample map, or clear it to start from scratch.
+  const SampleBody = z.object({ sample: z.boolean() }).strict();
+  on('POST', '/api/demo/progress', ({ user, body }) => {
+    if (user.role !== 'student') throw fail(403, 'Students only');
+    const parsed = SampleBody.safeParse(body);
+    if (!parsed.success) throw fail(400, 'Say whether to load sample progress');
+    if (parsed.data.sample) applySample(db, user.id); else clearProgress(db, user.id);
+    return { sample: parsed.data.sample };
   });
 
   // ---- course people, pulled from the Brightspace syllabus ---------------

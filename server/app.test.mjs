@@ -11,7 +11,8 @@ const call = async (token, path, method = 'GET', body) => {
   const res = await fetch(base + path, { method, headers: token ? { authorization: `Bearer ${token}` } : {}, body: body && JSON.stringify(body) });
   return { status: res.status, data: await res.json() };
 };
-const login = async (name, role) => (await call(null, '/login', 'POST', { name, role })).data.token;
+// Tests start from an empty map; `sample` is what the app itself asks for (demo progress).
+const login = async (name, role) => (await call(null, '/login', 'POST', { name, role, sample: false })).data.token;
 test.after(() => server.close());
 
 const plank = (home, id) => home.courses.flatMap((c) => c.planks).find((p) => p.lecture_id === id);
@@ -194,4 +195,33 @@ test('Read&Write: only a licensed student can save highlights, and only valid on
   assert.equal((await call(t, `/lectures/${lec}/readwrite`, 'PUT', { highlights: { x: 'purple' } })).status, 400);
   const teacher = await login('Prof', 'instructor');
   assert.equal((await call(teacher, '/integrations/readwrite/demo', 'POST', { licensed: true })).status, 403);
+});
+
+test('demo sample progress shows every material, rot and a gap, and can be cleared', async () => {
+  const t = (await call(null, '/login', 'POST', { name: 'Demo', role: 'student' })).data.token; // the app's own login
+  let home = (await call(t, '/home')).data;
+  let planks = home.courses.flatMap((c) => c.planks);
+  assert.deepEqual([...new Set(planks.map((p) => p.level))].sort(), [0, 1, 2, 3, 4]);
+  assert.ok(planks.some((p) => p.rot === 2) && planks.some((p) => p.rot === 1));
+  assert.equal(planks.filter((p) => p.open > 0).length, 1);
+  assert.equal(planks.find((p) => p.lecture_id === 'econ101-l4').level, 0); // the live demo lecture stays fresh
+  assert.equal(home.streak.days, 2);
+
+  assert.equal((await call(t, '/demo/progress', 'POST', { sample: false })).data.sample, false);
+  home = (await call(t, '/home')).data;
+  planks = home.courses.flatMap((c) => c.planks);
+  assert.ok(planks.every((p) => p.level === 0 && p.open === 0));
+  await call(t, '/demo/progress', 'POST', { sample: true });
+  assert.ok((await call(t, '/home')).data.courses.flatMap((c) => c.planks).some((p) => p.level === 4));
+
+  assert.equal((await call(t, '/demo/progress', 'POST', { sample: 'yes' })).status, 400);
+  const prof = await login('Dr. Okafor', 'instructor');
+  assert.equal((await call(prof, '/demo/progress', 'POST', { sample: true })).status, 403);
+});
+
+test('every course names its exam the same way', async () => {
+  const t = await login('Eve');
+  const { data } = await call(t, '/home');
+  assert.deepEqual(data.courses.map((c) => c.exam_label), ['Midterm 1', 'Midterm 1', 'Midterm 1']);
+  assert.ok(data.deadlines.filter((d) => d.kind === 'Exam').every((d) => d.title === 'Midterm 1'));
 });

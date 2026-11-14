@@ -13,6 +13,7 @@ export function SettingsPage({ home, section, reload, signOut }: { home: Home; s
   const [confirm, setConfirm] = useState(false);
   const [perm, setPerm] = useState('Notification' in window ? Notification.permission : 'unsupported');
   const save = async (patch: Settings) => { await api('/me', 'PATCH', { settings: patch }); reload(); };
+  const demoProgress = async (sample: boolean) => { await api('/demo/progress', 'POST', { sample }); reload(); };
   const exportData = async () => {
     const data = await api('/export');
     const a = document.createElement('a');
@@ -79,6 +80,15 @@ export function SettingsPage({ home, section, reload, signOut }: { home: Home; s
                 Demo: simulate a Read&amp;Write licence
               </Switch>
             )}
+          </section>
+
+          <section className="card stack">
+            <h2>Demo progress</h2>
+            <p className="muted">New accounts start with sample progress on the map: every material, some rot and a gap. This is demo data. These buttons replace the map progress.</p>
+            <div className="actions">
+              <button className="ghost" onClick={() => demoProgress(true)}>Load sample progress</button>
+              <button className="ghost" onClick={() => demoProgress(false)}>Start from scratch</button>
+            </div>
           </section>
 
           <section className="card stack">

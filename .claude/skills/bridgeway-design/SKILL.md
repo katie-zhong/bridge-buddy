@@ -30,11 +30,15 @@ easier to read.
 
 ## The bridge metaphor (keep it consistent)
 
-The home screen is a **top-down map**: one river, one bridge per course, **one plank per lecture**.
-Those planks are drawn by `PlankArt` in `src/Map.tsx`; never re-draw them elsewhere.
+The home screen is a **top-down forest map**: one lake per course, one bridge across each, **one plank
+per lecture**. Click a bridge to see it up close. All of it lives in `src/Map.tsx` and follows the same
+rules as everything else: scenery under `paint-wide`, small things under `paint`, trees and lakes as
+flat shapes with a lighter and a deeper wash, **no dark outlines** (rails and posts are filled wood, not
+strokes). The hover label is the dark rounded label (`.plantip`). Lecture planks are drawn only by
+`MaterialPlank` / `MaterialIcon` in `src/Troll.tsx`, next to the idea planks (`PlankArt`).
 
 - **Material** says how often the plank was renovated: driftwood → oak → stone → iron → gold
-  (`MATERIALS` in `ui.tsx`, swatch classes `.m0`–`.m4`).
+  (`MATERIALS` in `ui.tsx`; the look is in `MaterialPlank`). Legends use `MaterialIcon`, never CSS swatches.
 - **Rot** (moss, then bites out of the edge) means newer lectures have piled up since the
   student last worked on it. **A dashed hole with a `?`** means an open flag in that lecture.
 - Shape carries the state as well as colour (uneven boards, seams, rivets, moss, holes).

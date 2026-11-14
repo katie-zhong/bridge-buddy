@@ -3,8 +3,8 @@
 
 export const COURSES = [
   { id: 'econ101', code: 'ECON 101', title: 'Introductory Microeconomics', exam_label: 'Midterm 1', exam_in_days: 16, theme: 'meadow' },
-  { id: 'psyc100', code: 'PSYC 100', title: 'Introduction to Psychology', exam_label: 'Midterm', exam_in_days: 9, theme: 'garden' },
-  { id: 'math115', code: 'MATH 115', title: 'Linear Algebra for Engineering', exam_label: 'Midterm', exam_in_days: 12, theme: 'rocks' },
+  { id: 'psyc100', code: 'PSYC 100', title: 'Introduction to Psychology', exam_label: 'Midterm 1', exam_in_days: 9, theme: 'garden' },
+  { id: 'math115', code: 'MATH 115', title: 'Linear Algebra for Engineering', exam_label: 'Midterm 1', exam_in_days: 12, theme: 'rocks' },
 ];
 
 // Each concept has offline tutor content, used when no Claude API key is set.
@@ -231,8 +231,8 @@ export const DEADLINES = [
   { course: 'econ101', title: 'Problem set 2: Elasticity', in_days: 2, source: 'Brightspace', kind: 'Assignment', detail: 'Six midpoint-formula questions. Submit as a PDF by 5:00 pm.', weight: 5, covers: ['econ101-l4'] },
   { course: 'psyc100', title: 'Quiz 3: Learning and memory', in_days: 4, source: 'Brightspace', kind: 'Quiz', detail: '15 multiple-choice questions, 20 minutes, one attempt.', weight: 4, covers: ['psyc100-l3', 'psyc100-l4'] },
   { course: 'math115', title: 'WeBWorK set 5', in_days: 6, source: 'Course website', kind: 'Assignment', detail: 'Eight problems on determinants and inverses. Unlimited attempts.', weight: 3, covers: ['math115-l5', 'math115-l6'] },
-  { course: 'psyc100', title: 'Midterm', in_days: 9, source: 'Outlook calendar', kind: 'Exam', detail: 'Lectures 1 to 4. 50 minutes in RCH 101.', weight: 25, covers: ['psyc100-l1', 'psyc100-l2', 'psyc100-l3', 'psyc100-l4'] },
-  { course: 'math115', title: 'Midterm', in_days: 12, source: 'Outlook calendar', kind: 'Exam', detail: 'Lectures 1 to 6. 90 minutes. One formula sheet allowed.', weight: 30, covers: ['math115-l1', 'math115-l2', 'math115-l3', 'math115-l4', 'math115-l5', 'math115-l6'] },
+  { course: 'psyc100', title: 'Midterm 1', in_days: 9, source: 'Outlook calendar', kind: 'Exam', detail: 'Lectures 1 to 4. 50 minutes in RCH 101.', weight: 25, covers: ['psyc100-l1', 'psyc100-l2', 'psyc100-l3', 'psyc100-l4'] },
+  { course: 'math115', title: 'Midterm 1', in_days: 12, source: 'Outlook calendar', kind: 'Exam', detail: 'Lectures 1 to 6. 90 minutes. One formula sheet allowed.', weight: 30, covers: ['math115-l1', 'math115-l2', 'math115-l3', 'math115-l4', 'math115-l5', 'math115-l6'] },
   { course: 'econ101', title: 'Midterm 1', in_days: 16, source: 'Outlook calendar', kind: 'Exam', detail: 'Lectures 1 to 4. 80 minutes. Calculations are done by hand.', weight: 25, covers: ['econ101-l1', 'econ101-l2', 'econ101-l3', 'econ101-l4'] },
 ];
 

@@ -8,8 +8,8 @@ export const uid = () => randomUUID().slice(0, 13);
 
 // Bump when SCHEMA or the seed changes shape. An older database holds demo data only
 // (see CLAUDE.md rule 5), so it is dropped and seeded again.
-const VERSION = 3;
-const SET_VERSION = 'pragma user_version = 3';
+const VERSION = 4;
+const SET_VERSION = 'pragma user_version = 4';
 const DROP = ['users', 'courses', 'lectures', 'segments', 'marks', 'recalls', 'cards', 'problems', 'attempts', 'planks', 'notes', 'deadlines', 'posts', 'strategy_use', 'accommodations', 'rw_highlights']
   .map((t) => `drop table if exists ${t};`).join('\n');
 
