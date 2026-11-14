@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { api, go, stamp, useAsync, AnswerBox, LevelDial, Modal, OfflineNote, ReadAloud, Tutor, type Level, type Mark, type User } from './ui';
 import { Troll } from './Troll';
 
-/** Mend one plank: see the source, get an explanation at the level you choose, then answer Norbu's riddle. */
+/** Mend one gap: see the source, get an explanation at the level you choose, then answer Norbu's riddle. */
 export function Repair({ id, user, onClose }: { id: string; user: User; onClose: () => void }) {
   const mark = useAsync<Mark>(() => api(`/marks/${id}`), [id]);
   const [level, setLevel] = useState<Level>(user.settings.level || 'example');
@@ -33,7 +33,7 @@ export function Repair({ id, user, onClose }: { id: string; user: User; onClose:
 
   const m = mark.data;
   return (
-    <Modal title="Mend this plank" onClose={onClose}>
+    <Modal title="Mend this gap" onClose={onClose}>
       {mark.error && <p className="error">{mark.error}</p>}
       {m && (
         <div className="repair">
@@ -83,11 +83,10 @@ export function Repair({ id, user, onClose }: { id: string; user: User; onClose:
                     )}
                     {result && (
                       <div className={`verdict ${result.passed ? 'pass' : 'retry'}`} role="status">
-                        <p><strong>{result.passed ? 'Plank mended.' : 'Not across yet.'}</strong> {result.feedback}</p>
+                        <p><strong>{result.passed ? 'Gap mended.' : 'Not across yet.'}</strong> {result.feedback}</p>
                         {result.passed && <p>Added to your notes: <em>{result.note_line}</em></p>}
-                        {result.passed && <p className="fine">I'll ask you again in 7 days. Get it right then and the plank is proven for good.</p>}
                         {result.ai === 'offline' && result.ai_error && <OfflineNote error={result.ai_error} />}
-                        {result.passed && <button className="primary" onClick={onClose}>Back to my bridge</button>}
+                        {result.passed && <button className="primary" onClick={onClose}>Back to the map</button>}
                       </div>
                     )}
                   </div>

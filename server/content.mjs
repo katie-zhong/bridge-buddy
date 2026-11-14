@@ -1,13 +1,11 @@
 // Seeded demo course content. In a pilot this comes from Panopto (transcripts)
 // and Brightspace (deadlines) through the adapters in integrations.mjs.
 
-export const COURSE = {
-  id: 'econ101',
-  code: 'ECON 101',
-  title: 'Introductory Microeconomics',
-  exam_label: 'Midterm 1',
-  exam_in_days: 16,
-};
+export const COURSES = [
+  { id: 'econ101', code: 'ECON 101', title: 'Introductory Microeconomics', exam_label: 'Midterm 1', exam_in_days: 16, theme: 'meadow' },
+  { id: 'psyc100', code: 'PSYC 100', title: 'Introduction to Psychology', exam_label: 'Midterm', exam_in_days: 9, theme: 'garden' },
+  { id: 'math115', code: 'MATH 115', title: 'Linear Algebra for Engineering', exam_label: 'Midterm', exam_in_days: 12, theme: 'rocks' },
+];
 
 // Each concept has offline tutor content, used when no Claude API key is set.
 export const CONCEPTS = {
@@ -111,9 +109,16 @@ export const CONCEPTS = {
 
 const L = (concept, text) => ({ concept, text });
 
+const P = (question, answer, keywords) => ({ question, answer, keywords });
+
 export const LECTURES = [
   {
-    id: 'econ101-l3',
+    id: 'econ101-l3', course: 'econ101',
+    problems: [
+      P('You can spend tonight studying, working a $70 shift, or seeing friends. You rank them in that order. What is the opportunity cost of studying?', 'The $70 shift, because it is the next best option given up.', ['70', 'shift', 'work']),
+      P('An economy is producing at a point inside its production possibilities frontier. What could it do?', 'Produce more of both goods, because some resources are unused or wasted.', ['more of both', 'unused', 'waste', 'idle', 'inefficient']),
+      P('Moving along the frontier, the economy makes 10 more laptops and 40 fewer loaves. What is the opportunity cost of one laptop?', '4 loaves of bread per laptop.', ['4', 'four']),
+    ],
     title: 'Lecture 3: Scarcity, choice and opportunity cost',
     days_ago: 6,
     seg_seconds: 28,
@@ -129,7 +134,13 @@ export const LECTURES = [
     ],
   },
   {
-    id: 'econ101-l4',
+    id: 'econ101-l4', course: 'econ101',
+    problems: [
+      P('Students get a pay rise and buy more coffee at every price. Is that a movement along the demand curve or a shift? Which way?', 'A shift of the whole demand curve to the right, because income changed, not the price of coffee.', ['shift', 'right']),
+      P('At $6 a cup, cafes offer 180 cups but students want 90. What do we call this and what happens to the price?', 'A surplus of 90 cups, so the price falls toward equilibrium.', ['surplus', 'fall', 'drop', 'down', 'lower']),
+      P('Price rises from $10 to $14 and quantity falls from 70 to 50. Find the elasticity with the midpoint formula.', 'Quantity change is 20 over 60, about 33%. Price change is 4 over 12, about 33%. Elasticity is 1.', ['1', 'one', 'unit']),
+      P('A textbook publisher faces inelastic demand and raises its price. What happens to total revenue?', 'Revenue rises, because quantity falls by less than the price goes up.', ['rise', 'increase', 'up', 'more', 'higher']),
+    ],
     title: 'Lecture 4: Demand, equilibrium and elasticity',
     days_ago: 0,
     seg_seconds: 30,
@@ -157,38 +168,110 @@ export const LECTURES = [
   },
 ];
 
+
+// Short lectures that fill out the three demo courses. Each teaches one idea.
+const mini = (id, course, title, days_ago, key, c, segs, problems) => {
+  CONCEPTS[key] = { ...c, card: [c.riddle, c.note] };
+  return { id, course, title, days_ago, seg_seconds: 30, segments: segs.map((text) => L(key, text)), problems };
+};
+
+LECTURES.push(
+  mini('econ101-l1', 'econ101', 'Lecture 1: Thinking at the margin', 13, 'marginal',
+    { title: 'Marginal thinking', hint: 'Ignore the total. Ask only: what does ONE more cost me, and what does it give me?', example: 'A cafe is open anyway. One more coffee costs it 60 cents in beans and milk. If someone will pay $3, selling it is worth it, whatever the rent is.', walkthrough: '1. Find the cost of one more unit (the marginal cost).\n2. Find the gain from one more unit (the marginal benefit).\n3. If the gain is bigger, do one more.\n4. Stop when they are equal.', riddle: 'A cinema has empty seats and one more viewer costs it nothing extra. Should it sell a last-minute ticket for $4 when the normal price is $12? Why?', keywords: ['yes', 'marginal', 'extra', 'more than'], note: 'Decide at the margin: compare the cost and benefit of one more unit, not the totals.' },
+    ['Welcome to ECON 101. Economists look at how people choose. The first habit to learn is thinking at the margin. That means asking about one more unit, not the whole thing.', 'Say a cafe is already open. The rent is paid. One more coffee costs only the beans and the milk. We call that the marginal cost.', 'If the customer pays more than that marginal cost, the cafe gains by selling it. So good decisions compare marginal benefit with marginal cost. Totals and past costs do not matter.'],
+    [P('A bus is running anyway with empty seats. One more rider costs the company 20 cents. Should it accept a rider who pays $1? Why?', 'Yes. The marginal benefit of $1 is more than the marginal cost of 20 cents.', ['yes', 'marginal', 'more than', 'greater']), P('In one sentence, what is a marginal cost?', 'The extra cost of producing one more unit.', ['one more', 'extra', 'additional'])]),
+  mini('econ101-l2', 'econ101', 'Lecture 2: Comparative advantage and trade', 9, 'comparative',
+    { title: 'Comparative advantage', hint: 'Do not ask who is better. Ask who gives up LESS to do the job.', example: 'Ana can write a report in 2 hours or fix a bug in 1. Ben needs 3 hours for either. Ben gives up one bug per report; Ana gives up two. So Ben should write reports.', walkthrough: '1. For each person, work out what they give up to make one unit.\n2. The person who gives up less has the **comparative advantage**.\n3. Each makes what they give up least for, then they trade.\n4. Both end up with more.', riddle: 'A surgeon types faster than her assistant. Why might she still pay the assistant to type?', keywords: ['opportunity cost', 'surgery', 'give up', 'operat', 'time'], note: 'Comparative advantage: specialise in what you give up the least to produce, then trade.' },
+    ['Today, trade. Why do people and countries trade at all? The answer is comparative advantage. It is about opportunity cost, not about who is best.', 'Suppose Canada can make either wheat or cars more cheaply than another country. It still gains from trade if it focuses on the good where its advantage is biggest.', 'So the rule is this. Each side makes the good it gives up the least to produce. Then they trade, and both sides end up with more than before.'],
+    [P('Mia can bake 4 cakes or 8 loaves in a day. Sam can bake 2 cakes or 6 loaves. Who has the comparative advantage in loaves, and why?', 'Sam. He gives up a third of a cake per loaf, Mia gives up half a cake.', ['sam']), P('True or false: a country that is better at making everything gains nothing from trade. Explain.', 'False. It still gains by specialising where its opportunity cost is lowest.', ['false'])]),
+  mini('psyc100-l1', 'psyc100', 'Lecture 1: Correlation and causation', 15, 'correlation',
+    { title: 'Correlation is not causation', hint: 'Two things rising together does not tell you which one pushes the other, or whether a third thing pushes both.', example: 'Ice cream sales and drownings rise together. Ice cream does not cause drowning. Hot weather causes both.', walkthrough: '1. A **correlation** means two things change together.\n2. A might cause B. B might cause A. Or a third thing, C, might cause both.\n3. Only an **experiment** with random assignment can show cause.', riddle: 'Students who eat breakfast get higher grades. Give one reason this does not prove breakfast raises grades.', keywords: ['third', 'other', 'sleep', 'income', 'cause', 'confound', 'both'], note: 'A correlation shows two things move together. Only an experiment shows cause.' },
+    ['Psychology is a science, so we start with method. A correlation means two things tend to change together. More of one goes with more, or less, of the other.', 'But be careful. Ice cream sales and drownings rise together. Ice cream does not cause drowning. A third variable, hot weather, drives both.', 'To show that one thing causes another we need an experiment. We change one thing, assign people at random, and keep everything else the same.'],
+    [P('Towns with more churches have more crime. Name a third variable that could explain both.', 'Population size: bigger towns have more of both.', ['population', 'size', 'bigger', 'people', 'larger']), P('What does random assignment do in an experiment?', 'It spreads other differences evenly across groups, so only the thing we changed can explain the result.', ['even', 'equal', 'differences', 'balance', 'only', 'same'])]),
+  mini('psyc100-l2', 'psyc100', 'Lecture 2: Neurons and the synapse', 11, 'neuron',
+    { title: 'How neurons signal', hint: 'Inside one neuron the signal is electrical. Between two neurons it is chemical.', example: 'Think of a relay race. The runner (electrical signal) carries the baton down the track. At the gap, the baton (neurotransmitter) is passed across to the next runner.', walkthrough: '1. Dendrites receive signals.\n2. If enough arrive, the neuron fires an **action potential** down the axon.\n3. At the end, chemicals called **neurotransmitters** cross the gap, the **synapse**.\n4. They bind to the next neuron and may make it fire.', riddle: 'What carries the signal across the gap between two neurons?', keywords: ['neurotransmitter', 'chemical'], note: 'Signals are electrical along a neuron and chemical (neurotransmitters) across the synapse.' },
+    ['The brain is built from cells called neurons. Each neuron has dendrites that receive signals, a cell body, and a long axon that sends signals on.', 'When enough input arrives, the neuron fires. An electrical pulse called an action potential travels down the axon. It is all or nothing.', 'Neurons do not touch. Between them is a tiny gap, the synapse. Chemicals called neurotransmitters cross that gap and pass the message to the next cell.'],
+    [P('Put in order: synapse, dendrite, axon. Which part receives, which sends, and where is the gap?', 'Dendrites receive, the axon sends, and the synapse is the gap between neurons.', ['dendrite']), P('What does "all or nothing" mean for an action potential?', 'The neuron either fires fully or not at all. There is no half-strength signal.', ['fully', 'not at all', 'either', 'no half', 'same strength'])]),
+  mini('psyc100-l3', 'psyc100', 'Lecture 3: Classical conditioning', 7, 'conditioning',
+    { title: 'Classical conditioning', hint: 'Find what caused the reaction BEFORE any learning. Then find the new signal that got paired with it.', example: 'Your phone buzzes (neutral) just before good news arrives (causes a smile). After many pairings, the buzz alone makes you perk up.', walkthrough: '1. An **unconditioned stimulus** causes a reaction with no learning (food, drooling).\n2. Pair a neutral signal with it, again and again (bell, then food).\n3. The signal becomes a **conditioned stimulus**.\n4. Now the signal alone causes the reaction: the **conditioned response**.', riddle: 'A dentist\'s drill sound makes you tense before anything hurts. Which is the conditioned stimulus?', keywords: ['drill', 'sound'], note: 'Conditioning: a neutral signal paired with something meaningful comes to trigger the response alone.' },
+    ['Pavlov noticed his dogs drooled before the food arrived. They drooled at the sound of the assistant\'s footsteps. They had learned a link.', 'Food causes drooling with no learning. We call food the unconditioned stimulus. A bell means nothing at first. It is a neutral stimulus.', 'Ring the bell just before food, many times. The bell becomes a conditioned stimulus. Now the bell alone causes drooling, the conditioned response.'],
+    [P('A cat runs to the kitchen at the sound of a can opener. Name the conditioned stimulus and the conditioned response.', 'The can opener sound is the conditioned stimulus. Running to the kitchen is the conditioned response.', ['can opener', 'sound']), P('What happens if the bell rings many times with no food?', 'The response fades. This is called extinction.', ['fade', 'extinct', 'stop', 'weaker', 'disappear'])]),
+  mini('psyc100-l4', 'psyc100', 'Lecture 4: How memory works', 3, 'memory',
+    { title: 'Encoding, storage, retrieval', hint: 'Ask where it went wrong: getting it in, keeping it, or getting it back out.', example: 'You meet someone and forget their name at once: an encoding problem. You know the name is in there but it will not come: a retrieval problem.', walkthrough: '1. **Encoding**: getting information in. Attention matters.\n2. **Storage**: keeping it over time.\n3. **Retrieval**: getting it back out.\n4. Testing yourself strengthens retrieval more than re-reading does.', riddle: 'Why does testing yourself beat re-reading your notes?', keywords: ['retriev', 'practice', 'recall', 'pull'], note: 'Memory has three steps: encoding, storage, retrieval. Self-testing strengthens retrieval.' },
+    ['Memory has three stages. Encoding is getting information in. Storage is keeping it. Retrieval is getting it back out when you need it.', 'Working memory is small. It holds only a few items for a few seconds. To keep something, you have to connect it to what you already know.', 'The best way to make a memory last is retrieval practice. Close the book and try to recall. It feels harder than re-reading, and that effort is what makes it stick.'],
+    [P('You studied but blank on the exam, then remember the answer on the walk home. Which stage failed?', 'Retrieval. The information was stored but could not be pulled out in the moment.', ['retriev']), P('Give one study habit that uses retrieval practice.', 'Self-testing, for example flashcards or answering questions with the book closed.', ['test', 'flashcard', 'quiz', 'closed', 'recall', 'question'])]),
+  mini('math115-l1', 'math115', 'Lecture 1: Vectors and the dot product', 17, 'dot',
+    { title: 'The dot product', hint: 'Multiply matching parts, then add the results. You get one number.', example: '(1, 2) · (3, 4) = 1×3 + 2×4 = 3 + 8 = 11.', walkthrough: '1. Line up the two vectors.\n2. Multiply the first entries. Multiply the second entries. And so on.\n3. Add those products.\n4. If the answer is 0, the vectors are at right angles.', riddle: 'Work out (2, 0, 1) · (1, 5, 3).', keywords: ['5', 'five'], note: 'Dot product: multiply matching entries and add. Zero means perpendicular.' },
+    ['A vector is a list of numbers. You can picture it as an arrow. We write it in brackets, like one comma two.', 'The dot product takes two vectors and gives one number. Multiply the first entries, multiply the second entries, and add the results.', 'One fact to remember. If the dot product is zero, the two vectors are perpendicular. They meet at a right angle.'],
+    [P('Work out (3, 1) · (2, 4).', '3×2 + 1×4 = 10.', ['10', 'ten']), P('The dot product of two vectors is 0. What does that tell you?', 'They are perpendicular (at right angles).', ['perpendicular', 'right angle', 'orthogonal', '90'])]),
+  mini('math115-l2', 'math115', 'Lecture 2: Systems of linear equations', 14, 'systems',
+    { title: 'Systems of equations', hint: 'A solution has to make EVERY equation true at the same time.', example: 'x + y = 5 and x − y = 1. Add them: 2x = 6, so x = 3. Then y = 2. Check: 3 + 2 = 5 and 3 − 2 = 1.', walkthrough: '1. Write the equations one under the other.\n2. Add or subtract to remove one unknown.\n3. Solve for the one that is left.\n4. Put it back to find the other.\n5. A system has one solution, none, or infinitely many.', riddle: 'Solve x + y = 7 and x − y = 3.', keywords: ['5', '2'], note: 'A system can have one solution, no solution, or infinitely many.' },
+    ['A linear system is a set of equations that share the same unknowns. A solution must satisfy all of them at once.', 'Picture two lines on a graph. Usually they cross at one point. That point is the one solution.', 'But parallel lines never cross, so there is no solution. And if the two lines are the same line, there are infinitely many solutions.'],
+    [P('Solve 2x + y = 7 and x − y = 2.', 'Add them: 3x = 9, x = 3, then y = 1.', ['3', '1']), P('Two equations describe parallel lines. How many solutions does the system have?', 'None. Parallel lines never meet.', ['none', 'no solution', 'zero', '0'])]),
+  mini('math115-l3', 'math115', 'Lecture 3: Row reduction', 10, 'rowreduce',
+    { title: 'Row reduction', hint: 'You are allowed three moves only: swap two rows, scale a row, add a multiple of one row to another.', example: 'Rows [1 2 | 5] and [3 4 | 11]. Take row 2 minus 3 × row 1: [0 −2 | −4]. So y = 2, then x = 1.', walkthrough: '1. Write the system as an augmented matrix.\n2. Make a leading 1 in the first row.\n3. Use it to make zeros below it.\n4. Move to the next row and repeat.\n5. Read the answers off from the bottom up.', riddle: 'Name the three row operations you are allowed to use.', keywords: ['swap', 'multiply', 'scale', 'add'], note: 'Row reduce with three moves: swap rows, scale a row, add a multiple of one row to another.' },
+    ['Writing equations out in full is slow. So we drop the letters and keep only the numbers in a grid. That grid is the augmented matrix.', 'There are three row operations. Swap two rows. Multiply a row by a number that is not zero. Add a multiple of one row to another row.', 'None of these change the solutions. We use them to make zeros below each leading entry, a staircase shape, and then we read off the answer.'],
+    [P('Rows are [1 1 | 4] and [2 3 | 9]. Do row 2 minus 2 × row 1. What is the new row 2?', '[0 1 | 1].', ['0 1 | 1', '0, 1, 1', '0 1 1']), P('Why are row operations safe to use?', 'They do not change the set of solutions.', ['solution', 'same', 'not change', 'equivalent'])]),
+  mini('math115-l4', 'math115', 'Lecture 4: Matrix multiplication', 7, 'matmul',
+    { title: 'Multiplying matrices', hint: 'Each entry of the answer is one dot product: a ROW of the first with a COLUMN of the second.', example: '[1 2; 3 4] times [5; 6]: top is 1×5 + 2×6 = 17, bottom is 3×5 + 4×6 = 39.', walkthrough: '1. Check sizes: columns of the first must equal rows of the second.\n2. For the entry in row i, column j: take row i of the first and column j of the second.\n3. Take their dot product.\n4. Order matters: AB is usually not BA.', riddle: 'Can you multiply a 2×3 matrix by a 2×2 matrix, in that order? Why or why not?', keywords: ['no', 'columns', 'rows', 'match', '3'], note: 'Matrix product: row of the first dotted with column of the second. AB is usually not BA.' },
+    ['To multiply two matrices we do not multiply entry by entry. Each entry of the answer is a dot product.', 'Take a row from the first matrix and a column from the second. Their dot product is one entry of the result.', 'Two warnings. The inner sizes must match: columns of the first, rows of the second. And the order matters. A times B is usually not B times A.'],
+    [P('A is 2×3 and B is 3×4. What size is AB?', '2×4.', ['2x4', '2×4', '2 by 4', '2 x 4']), P('Compute [1 2] times the column [3; 4].', '1×3 + 2×4 = 11.', ['11', 'eleven'])]),
+  mini('math115-l5', 'math115', 'Lecture 5: Determinants', 4, 'det',
+    { title: 'The 2×2 determinant', hint: 'Down-right diagonal minus up-right diagonal: ad − bc.', example: 'For [3 1; 2 4]: 3×4 − 1×2 = 12 − 2 = 10.', walkthrough: '1. Label the matrix [a b; c d].\n2. Multiply a × d.\n3. Multiply b × c.\n4. Subtract: ad − bc.\n5. If the answer is 0, the matrix has no inverse.', riddle: 'Find the determinant of [2 5; 1 3].', keywords: ['1', 'one'], note: 'det [a b; c d] = ad − bc. A zero determinant means no inverse.' },
+    ['The determinant is one number we compute from a square matrix. It tells us a lot about that matrix.', 'For a two by two matrix with entries a, b, c, d, the determinant is a times d minus b times c.', 'If the determinant is zero, the matrix squashes space flat. That means it has no inverse, and its system does not have exactly one solution.'],
+    [P('Find the determinant of [4 2; 1 3].', '4×3 − 2×1 = 10.', ['10', 'ten']), P('A matrix has determinant 0. Can it be inverted?', 'No. A zero determinant means there is no inverse.', ['no', 'cannot', 'not'])]),
+  mini('math115-l6', 'math115', 'Lecture 6: The inverse of a matrix', 1, 'inverse',
+    { title: 'The 2×2 inverse', hint: 'Swap a and d, flip the signs of b and c, then divide everything by the determinant.', example: 'For [2 1; 1 1]: determinant is 1. Swap and flip: [1 −1; −1 2]. Divide by 1: same matrix.', walkthrough: '1. Find the determinant ad − bc. If it is 0, stop: no inverse.\n2. Swap a and d.\n3. Change the signs of b and c.\n4. Divide every entry by the determinant.\n5. Check: the matrix times its inverse gives the identity.', riddle: 'What do you get when you multiply a matrix by its inverse?', keywords: ['identity', 'i'], note: 'Inverse of [a b; c d] is (1/det) × [d −b; −c a]. A times its inverse is the identity.' },
+    ['The inverse of a matrix undoes it. A matrix times its inverse gives the identity matrix, ones on the diagonal and zeros elsewhere.', 'For a two by two matrix: swap the two diagonal entries, change the sign of the other two, and divide everything by the determinant.', 'That is why a zero determinant is a problem. We would be dividing by zero, so no inverse exists.'],
+    [P('Find the inverse of [1 2; 0 1].', '[1 −2; 0 1]. The determinant is 1.', ['-2', '−2']), P('Why does a matrix with determinant 0 have no inverse?', 'The formula divides by the determinant, and you cannot divide by zero.', ['divide', 'zero', '0'])]),
+);
+
 export const DEADLINES = [
-  { course: 'ECON 101', title: 'Problem set 2: Elasticity', in_days: 2, source: 'Brightspace', kind: 'assignment' },
-  { course: 'ECON 101', title: 'Reading: Chapter 4 (22 pages)', in_days: 1, source: 'Brightspace', kind: 'reading' },
-  { course: 'PSYC 100', title: 'Quiz 3: Memory', in_days: 4, source: 'Brightspace', kind: 'quiz' },
-  { course: 'MATH 115', title: 'WeBWorK set 5', in_days: 6, source: 'Course website', kind: 'assignment' },
-  { course: 'ECON 101', title: 'Midterm 1', in_days: 16, source: 'Outlook calendar', kind: 'exam' },
+  { course: 'econ101', title: 'Reading: Chapter 4', in_days: 1, source: 'Brightspace', kind: 'Reading', detail: '22 pages on elasticity. About 50 minutes, or 25 with the summary first.', weight: null, covers: ['econ101-l4'] },
+  { course: 'econ101', title: 'Problem set 2: Elasticity', in_days: 2, source: 'Brightspace', kind: 'Assignment', detail: 'Six midpoint-formula questions. Submit as a PDF by 5:00 pm.', weight: 5, covers: ['econ101-l4'] },
+  { course: 'psyc100', title: 'Quiz 3: Learning and memory', in_days: 4, source: 'Brightspace', kind: 'Quiz', detail: '15 multiple-choice questions, 20 minutes, one attempt.', weight: 4, covers: ['psyc100-l3', 'psyc100-l4'] },
+  { course: 'math115', title: 'WeBWorK set 5', in_days: 6, source: 'Course website', kind: 'Assignment', detail: 'Eight problems on determinants and inverses. Unlimited attempts.', weight: 3, covers: ['math115-l5', 'math115-l6'] },
+  { course: 'psyc100', title: 'Midterm', in_days: 9, source: 'Outlook calendar', kind: 'Exam', detail: 'Lectures 1 to 4. 50 minutes in RCH 101.', weight: 25, covers: ['psyc100-l1', 'psyc100-l2', 'psyc100-l3', 'psyc100-l4'] },
+  { course: 'math115', title: 'Midterm', in_days: 12, source: 'Outlook calendar', kind: 'Exam', detail: 'Lectures 1 to 6. 90 minutes. One formula sheet allowed.', weight: 30, covers: ['math115-l1', 'math115-l2', 'math115-l3', 'math115-l4', 'math115-l5', 'math115-l6'] },
+  { course: 'econ101', title: 'Midterm 1', in_days: 16, source: 'Outlook calendar', kind: 'Exam', detail: 'Lectures 1 to 4. 80 minutes. Calculations are done by hand.', weight: 25, covers: ['econ101-l1', 'econ101-l2', 'econ101-l3', 'econ101-l4'] },
 ];
 
-// Struggles are described by what the student experiences, never by diagnosis.
-export const STRUGGLES = [
-  { key: 'pace', label: 'Lectures move too fast for me' },
-  { key: 'attention', label: 'I lose the thread part-way through' },
-  { key: 'reading', label: 'Readings take me much longer' },
-  { key: 'writing', label: 'Getting my thoughts onto the page is hard' },
-  { key: 'numbers', label: 'Calculations and formulas trip me up' },
-  { key: 'starting', label: 'Starting and planning work is hard' },
+// What gets in the way, described by what the student experiences, never by diagnosis.
+// Each detail carries the one strategy Norbu suggests for it, and why.
+const D = (key, label, title, how, why, setting) => ({ key, label, strategy: { title, how, why, setting } });
+export const AREAS = [
+  { key: 'pace', label: 'Keeping up in lectures', details: [
+    D('pace-fast', 'The lecturer talks faster than I can follow', 'Flag it and keep listening', 'Press F the moment you are lost. Mend the gap after class.', 'Trying to catch up mid-lecture costs you the next idea too.'),
+    D('pace-notes', 'I can\'t listen and take notes at once', 'Let Norbu take the notes', 'Just listen. The transcript is saved and your flags mark what matters.', 'Splitting attention between listening and writing drops both.'),
+    D('pace-terms', 'New terms pile up before I get them', 'Preview the summary first', 'Open the lecture summary before class so the new words are not new.', 'A term you have seen once is far easier to follow the second time.'),
+  ] },
+  { key: 'attention', label: 'Staying focused', details: [
+    D('attn-drift', 'I drift off part-way through', 'Ten-minute checkpoints', 'Norbu nudges you every ten minutes of a live lecture.', 'A regular cue brings you back before you have lost the thread.', { checkpoints: true }),
+    D('attn-busy', 'Busy screens distract me', 'Focus view', 'Lectures show only the current passage. The side panel is hidden.', 'Less on screen means less to pull your eyes away.', { focus: true }),
+    D('attn-return', 'Once I\'m lost I can\'t get back in', 'Flag, then restart at the next passage', 'Flag, take one breath, and pick up from the newest line.', 'Letting go of the missed part is what lets you rejoin.'),
+  ] },
+  { key: 'reading', label: 'Reading', details: [
+    D('read-slow', 'Reading takes me much longer', 'Listen while you read', 'Use Read aloud on any passage or explanation and follow along.', 'Hearing and seeing the words together eases the load of decoding.'),
+    D('read-dense', 'I lose my place in dense text', 'Roomier text', 'Bigger text with wider line spacing, everywhere in Bridgeway.', 'Space between lines makes it easier to track where you are.', { spacing: 2, size: 1.1 }),
+    D('read-long', 'Long readings feel impossible to start', 'Summary first, details second', 'Read the lecture summary, then only the passages you flagged.', 'Knowing the shape first tells you where each detail belongs.'),
+  ] },
+  { key: 'writing', label: 'Writing', details: [
+    D('write-start', 'I know it but can\'t get it onto the page', 'Say your answer out loud', 'Use the microphone on any answer box. Talk first, tidy later.', 'Speaking skips the step that is getting in your way.'),
+    D('write-order', 'My ideas come out in the wrong order', 'Three-bullet outline', 'Type three bullets first: claim, reason, example. Then join them.', 'Ordering three short points is easier than ordering a paragraph.'),
+    D('write-spell', 'Spelling slows me down', 'Ideas over spelling', 'Write it however it comes. Norbu checks the idea, not the spelling.', 'Stopping to fix each word breaks your train of thought.'),
+  ] },
+  { key: 'numbers', label: 'Numbers and formulas', details: [
+    D('num-steps', 'I lose track of the steps', 'Full walkthrough first', 'Explanations open with every step shown, one per line.', 'Seeing all the steps laid out frees you from holding them in your head.', { level: 'walkthrough' }),
+    D('num-symbols', 'Formulas and symbols blur together', 'Write the formula in words', 'Before any numbers, write the formula as a sentence.', 'Words carry meaning that symbols alone hide.'),
+    D('num-slips', 'I make small slips with digits', 'Worked example, then one step at a time', 'Explanations open with a worked example to copy the layout from.', 'A fixed layout makes a slipped digit easy to spot.', { level: 'example' }),
+  ] },
+  { key: 'planning', label: 'Planning and starting', details: [
+    D('plan-start', 'Getting started is the hard part', 'One plank, five minutes', 'Open Bridgeway and renovate one plank. Stopping after one is allowed.', 'A task with a clear end is much easier to begin.'),
+    D('plan-time', 'Deadlines sneak up on me', 'Same time every day', 'Set a daily reminder in Settings for a time you are usually free.', 'A fixed time turns starting into a habit, not a decision.'),
+    D('plan-big', 'Big tasks feel too big', 'Work from the "Coming up" list', 'Each deadline lists the planks it covers. Do one plank per sitting.', 'Small visible pieces make progress you can see.'),
+  ] },
 ];
-
-export const STRATEGIES = [
-  { id: 'flag-move', struggle: 'pace', title: 'Flag it and keep listening', how: 'Press F the moment you get lost instead of trying to catch up. Repair the gap after class with the recording.', lift: 0.2 },
-  { id: 'preview', struggle: 'pace', title: 'Five-line preview before class', how: 'Read Norbu\'s five-line preview of the lecture topics before you walk in, so new words are not new.', lift: 0.12 },
-  { id: 'checkpoints', struggle: 'attention', title: 'Ten-minute checkpoints', how: 'Norbu nudges you every ten minutes of lecture: still with us? One tap to flag if not.', setting: { checkpoints: true }, lift: 0.17 },
-  { id: 'focus', struggle: 'attention', title: 'Focus view', how: 'Show only the current part of the transcript and hide the side panel.', setting: { focus: true }, lift: 0.1 },
-  { id: 'listen', struggle: 'reading', title: 'Listen while you read', how: 'Use the read-aloud button on any explanation or passage and follow along with your eyes.', setting: { readAloud: true }, lift: 0.18 },
-  { id: 'summary-first', struggle: 'reading', title: 'Summary first, details second', how: 'Open the lecture summary before the full transcript so you know where each detail belongs.', lift: 0.11 },
-  { id: 'dictate', struggle: 'writing', title: 'Say your answer out loud', how: 'Use the microphone on riddles and notes. Talk first, tidy the words afterwards.', setting: { dictation: true }, lift: 0.19 },
-  { id: 'outline', struggle: 'writing', title: 'Three-bullet outline', how: 'Before a written answer, type three short bullets: claim, reason, example. Then join them up.', lift: 0.13 },
-  { id: 'worked', struggle: 'numbers', title: 'Worked example first', how: 'Set support to "Worked example" so every calculation is shown with numbers before you try one.', setting: { level: 'example' }, lift: 0.21 },
-  { id: 'units', struggle: 'numbers', title: 'Write the formula in words', how: 'Before any numbers, write the formula as a sentence. Then fill in one value at a time.', lift: 0.12 },
-  { id: 'first-plank', struggle: 'starting', title: 'One plank, five minutes', how: 'Open Bridgeway and repair just one plank. Stopping after one is allowed.', lift: 0.16 },
-  { id: 'same-time', struggle: 'starting', title: 'Same time every day', how: 'Set a daily reminder for a time you are usually free, so starting is not a decision.', lift: 0.14 },
-];
+export const DETAILS = AREAS.flatMap((a) => a.details.map((d) => ({ ...d, area: a.label })));
 
 // Demo syllabus as it would come out of Brightspace (Content › Course information). Names and
 // addresses are invented and use the reserved .example domain. parseSyllabus() reads it.

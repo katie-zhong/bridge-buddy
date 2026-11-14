@@ -1,25 +1,26 @@
 import { useState } from 'react';
-import { api, go, type Home } from './ui';
-import { PlankIcon, Troll, type Mood } from './Troll';
+import { api, go, MATERIALS, type Home } from './ui';
+import { Troll, type Mood } from './Troll';
+import { AreaPicker, Suggestions } from './Strategies';
 
-const TOUR: { title: string; body: string; mood: Mood; plank: 'plain' | 'gap' | 'mended' | 'proven'; key?: string }[] = [
-  { title: 'This is your bridge', body: 'Every idea in your course is one plank. Your bridge leads to the next exam, and it starts out whole.', mood: 'idle', plank: 'plain' },
-  { title: 'Lost in a lecture? Press F', body: 'Norbu marks the exact moment and you keep listening. That idea becomes a missing plank. You can also type a quick question, with no need to explain the context.', mood: 'think', plank: 'gap', key: 'F' },
-  { title: 'Later, mend the plank', body: 'Norbu shows what was said, explains it as a hint, a worked example or a full walkthrough, then asks you a riddle. Answer it in your own words.', mood: 'idle', plank: 'mended' },
-  { title: 'A week later, prove it', body: 'Norbu asks once more after seven days. Still right? The plank turns green for good. That is what counts here, not how often you log in.', mood: 'happy', plank: 'proven' },
+const TOUR: { title: string; body: string; mood: Mood; art: 'planks' | 'gap' | 'materials'; key?: string }[] = [
+  { title: 'Every lecture is a plank', body: 'New lectures land on your bridges by themselves.', mood: 'idle', art: 'planks' },
+  { title: 'Lost in a lecture? Press', body: 'Norbu marks the spot. Keep listening and mend it later.', mood: 'think', art: 'gap', key: 'F' },
+  { title: 'Renovate to make it stronger', body: 'Practise a plank and it is rebuilt in a tougher material. Leave it too long and it rots.', mood: 'idle', art: 'materials' },
 ];
 
-/** First visit: ask what gets in the way, then a four-step tour of the core loop. */
+/** First visit: what gets in the way, what Norbu suggests for it, then a three-step tour. */
 export function Welcome({ home, reload }: { home: Home; reload: () => void }) {
   const [step, setStep] = useState(0);
   const [picked, setPicked] = useState<string[]>(home.user.struggles);
   const [busy, setBusy] = useState(false);
-  const demo = home.lectures.find((l) => l.live_demo);
+  const demo = home.courses.flatMap((c) => c.planks).find((p) => p.live_demo);
 
   const saveStruggles = async () => {
     setBusy(true);
     try { await api('/me', 'PATCH', { struggles: picked }); } finally { setBusy(false); }
-    setStep(1);
+    reload();
+    setStep(picked.length ? 1 : 2);
   };
   const finish = async (to: string) => {
     setBusy(true);
@@ -30,45 +31,51 @@ export function Welcome({ home, reload }: { home: Home; reload: () => void }) {
 
   if (step === 0) {
     return (
-      <main className="welcome">
-        <Troll size={110} />
-        <h1>Nice to meet you, {home.user.name}. I'm Norbu, your Bridgeway buddy.</h1>
-        <p className="lede">First, what gets in the way when you study? Pick any that fit. You don't need a diagnosis or the right word for it, and you can change this later.</p>
-        <div className="chips center">
-          {home.struggles.map((s) => {
-            const on = picked.includes(s.key);
-            return <button key={s.key} className={on ? 'pick on' : 'pick'} aria-pressed={on} onClick={() => setPicked(on ? picked.filter((k) => k !== s.key) : [...picked, s.key])}>{s.label}</button>;
-          })}
-        </div>
-        <p className="fine">Only you see this. For each one, I'll switch on the strategy that helped students who said the same. Change them any time in Settings.</p>
+      <main className="welcome wide">
+        <Troll size={96} />
+        <h1>Hi {home.user.name}, I'm Norbu. What gets in the way?</h1>
+        <AreaPicker areas={home.areas} picked={picked} onChange={setPicked} />
         <div className="actions center">
-          <button className="primary" disabled={busy} onClick={saveStruggles}>{picked.length ? 'Continue' : 'None of these, continue'}</button>
+          <button className="primary" disabled={busy} onClick={saveStruggles}>{picked.length ? 'Continue' : 'Skip'}</button>
+        </div>
+      </main>
+    );
+  }
+  if (step === 1) {
+    return (
+      <main className="welcome wide">
+        <h1>Here's what I'd try</h1>
+        <Suggestions reload={reload} watch={picked.join()} />
+        <p className="fine">You can change these in Settings.</p>
+        <div className="actions center">
+          <button className="ghost" onClick={() => setStep(0)}>Back</button>
+          <button className="primary" onClick={() => setStep(2)}>Continue</button>
         </div>
       </main>
     );
   }
 
-  const t = TOUR[step - 1];
-  const last = step === TOUR.length;
+  const i = step - 2, t = TOUR[i], last = i === TOUR.length - 1;
   return (
     <main className="welcome">
-      <p className="eyebrow">How it works · {step} of {TOUR.length}</p>
       <div className="tourart">
         <Troll size={120} mood={t.mood} />
         <div className="miniplanks" aria-hidden>
-          {[0, 1, 2, 3, 4].map((i) => <PlankIcon key={i} state={i === 2 ? t.plank : 'plain'} size={60} />)}
+          {t.art === 'materials'
+            ? MATERIALS.map((m, k) => <i key={m} className={`mini m${k}`} />)
+            : [0, 1, 2, 3, 4].map((k) => <i key={k} className={`mini m0 ${t.art === 'gap' && k === 2 ? 'gap' : ''}`}>{t.art === 'gap' && k === 2 ? '?' : ''}</i>)}
         </div>
       </div>
       <h1>{t.title} {t.key && <kbd>{t.key}</kbd>}</h1>
       <p className="lede">{t.body}</p>
-      <div className="dots" aria-hidden>{TOUR.map((_, i) => <i key={i} className={i === step - 1 ? 'on' : ''} />)}</div>
+      <div className="dots" aria-hidden>{TOUR.map((_, k) => <i key={k} className={k === i ? 'on' : ''} />)}</div>
       <div className="actions center">
         <button className="ghost" onClick={() => setStep(step - 1)}>Back</button>
         {!last && <button className="primary" onClick={() => setStep(step + 1)}>Next</button>}
-        {last && demo && <button className="primary" disabled={busy} onClick={() => finish(`/lecture/${demo.id}`)}>Try it in a lecture</button>}
-        {last && <button className={demo ? 'ghost' : 'primary'} disabled={busy} onClick={() => finish('/')}>Go to my bridge</button>}
+        {last && demo && <button className="primary" disabled={busy} onClick={() => finish(`/lecture/${demo.lecture_id}`)}>Try it in a lecture</button>}
+        {last && <button className={demo ? 'ghost' : 'primary'} disabled={busy} onClick={() => finish('/')}>See my bridges</button>}
       </div>
-      {!last && <button className="link skiptour" disabled={busy} onClick={() => finish('/')}>Skip the tour</button>}
+      {!last && <button className="link skiptour" disabled={busy} onClick={() => finish('/')}>Skip</button>}
     </main>
   );
 }

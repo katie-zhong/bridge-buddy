@@ -4,7 +4,7 @@ Your Northbridge buddy. A lecture companion for first-year students, built for
 the ProdCon 2026 case "Learning Without Limits".
 
 **The loop:** flag the moment you get lost → keep listening → mend the gap later with an
-explanation at the level you choose → answer Norbu's riddle → prove it a week later.
+explanation at the level you choose → answer Norbu's riddle → renovate each lecture's plank with practice so it does not rot.
 
 
 ## Run it
@@ -44,7 +44,7 @@ If PowerShell says "running scripts is disabled on this system", use `npm.cmd` i
 
 ### Turning on Claude
 
-Without credentials Bridgeway runs an **offline tutor** that only knows the two seeded ECON 101
+Without credentials Bridgeway runs an **offline tutor** that only knows the seeded demo
 lectures (the header shows an "Offline tutor" badge). To use Claude for any lecture:
 
 ```bash
@@ -61,16 +61,15 @@ when it was built; if a call fails, Bridgeway falls back to the offline tutor an
 
 | Area | What it does |
 |---|---|
-| Bridge (home) | A painted stone arch, one wooden plank per idea: a dashed hole = gap you flagged, patched = mended, green with a tick = proven a week later. Today, Coming up (office hours + deadlines) and Lectures below. |
+| Map (home) | One bridge per course, one plank per lecture. Hover a plank to see the lecture and renovate it. Planks rot if left alone while newer lectures arrive. "+" adds a lecture. Deadlines from every source below, with the planks each one covers. |
 | Lecture | Timestamped transcript. Press **F** to flag. Ask a question about the current moment without typing context. Questions and flags collapse into the margin; mended ones fold into one line of your notes. |
-| Live | "Sit in on it live" replays the demo lecture as if live. "Add a lecture → Record it live" transcribes a real lecture from your microphone (Chrome or Edge). You can also paste or upload a Panopto caption file (.vtt/.srt). |
-| Mend a plank | Source passage → explanation with a Hint / Worked example / Full walkthrough dial → riddle graded on understanding, not spelling. |
-| Practice | Week-later riddles (the comprehension measure) and spaced flashcards. |
-| What helps | In Settings. Pick what feels hard (never a diagnosis). Suggestions show how students who said the same did on week-later riddles, only for groups of 5 or more. |
+| Live | "Sit in on it live" replays the demo lecture as if live. "+" on a bridge records a real lecture from your microphone (Chrome or Edge) or takes a Panopto caption file (.vtt/.srt). |
+| Mend a gap | Source passage → explanation with a Hint / Worked example / Full walkthrough dial → riddle graded on understanding, not spelling. |
+| Renovate | Solve the lecture's practice problems to rebuild its plank: driftwood → oak → stone → iron → gold. |
 | Community | Teaching team, office hours with Microsoft Teams links, and who to email for what, pulled from the Brightspace syllabus (demo). The Email button opens your mail app with the context filled in. |
 | Read&Write | Students with a Read&Write licence through their accommodations can open their lecture notes in a Read&Write-style panel: highlighters, read aloud, collect highlights (mock). |
-| Class view | Instructors see where the class got lost: flags along the lecture, results by idea, common questions. Groups only, never names. |
-| Settings | Gear icon, top right. Profile (what gets in the way, your strategies as checkboxes), typeface, size, spacing, calm mode, focus view, replay speed and word highlight, connected tools, daily reminder, data export, account deletion, opt out of class totals. |
+| Class view | Instructors see where the class got lost and set the practice problems. Groups only, never names. |
+| Settings | Gear icon, top right. What gets in the way and the strategies Norbu suggests for it, typeface, size, spacing, calm mode, focus view, daily reminder, data export, account deletion, opt out of class totals. |
 
 Read-aloud and "say it" dictation are available on explanations and answer boxes.
 
@@ -78,7 +77,7 @@ Read-aloud and "say it" dictation are available on explanations and answer boxes
 
 - **Real:** everything above, the SQLite store, per-user access checks, the minimum-group
   rule, live browser transcription, transcript import.
-- **Demo data:** two ECON 101 lectures, a deadline list, and a generated class of 84
+- **Demo data:** three courses with 14 lectures and their practice problems (only the two full ECON 101 lectures are long), a deadline list, and a generated class of 84
   students so the aggregate views have something to show. The app labels these figures as
   demo data wherever they appear.
 - **Not connected yet:** Panopto, Brightspace, Microsoft 365 and Read&Write (the syllabus pull and the licence are mocks).
@@ -97,5 +96,5 @@ server/db.mjs            schema and seed
 server/content.mjs       demo course, strategies
 server/integrations.mjs  Panopto / Brightspace / M365 boundary, transcript parser
 api/norbu.mjs            Vercel Function entry (wraps the same API)
-src/                     React app (Lecture, Repair, Practice, Strategies, Instructor, Settings)
+src/                     React app (Map, Lecture, Repair, Renovate, Welcome, Strategies, Instructor, Settings)
 ```

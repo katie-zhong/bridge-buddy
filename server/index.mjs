@@ -4,13 +4,14 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openDb, insertSegments, now, uid, DAY } from './db.mjs';
 import * as ai from './ai.mjs';
-import { CONCEPTS, STRATEGIES, STRUGGLES, SYLLABUS } from './content.mjs';
-import { parseSyllabus, parseTranscript } from './integrations.mjs';
 import { z } from 'zod';
+import { CONCEPTS, AREAS, DETAILS, SYLLABUS } from './content.mjs';
+import { parseSyllabus, parseTranscript } from './integrations.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const MIN_GROUP = 5; // never show an aggregate about fewer than this many students
-const BOXES = [0, 1, 3, 7, 14];
+const MAX_LEVEL = 4; // driftwood, oak, stone, iron, gold
+const ROT_AFTER = 3, ROTTEN_AFTER = 5; // newer lectures in the course since the plank was last worked on
 
 // Everything a student may change about their own profile. Unknown keys are rejected.
 // Read&Write highlighter colours, each with a fixed meaning so colour is never the only cue.
@@ -49,6 +50,12 @@ export function createHandler(db = openDb()) {
     return l;
   };
   const segsOf = (lectureId) => q('select * from segments where lecture_id=? order by idx', lectureId);
+  // The ideas taught in a lecture, in order, each starting where its first passage starts.
+  const ideasOf = (lectureId) => {
+    const seen = new Map();
+    for (const s of segsOf(lectureId)) if (!seen.has(s.concept)) seen.set(s.concept, s);
+    return [...seen].map(([concept, first]) => ({ concept, title: CONCEPTS[concept]?.title || `Part ${concept.replace('part-', '')}`, t_start: first.t_start }));
+  };
   const markFor = (id, user) => {
     const m = one('select * from marks where id=? and user_id=?', id, user.id);
     if (!m) throw fail(404, 'Not found');
@@ -61,28 +68,31 @@ export function createHandler(db = openDb()) {
   };
 
   // ---- derived views ---------------------------------------------------
+  // One plank per lecture. Its material is how many times it has been renovated; it rots when
+  // newer lectures pile up and the student has not asked, mended or practised on it since.
   function planks(user, courseId) {
     const lectures = q('select * from lectures where course_id=? and (owner_id is null or owner_id=?) order by held_at', courseId, user.id);
-    const marks = q('select m.*, s.concept from marks m join segments s on s.id=m.segment_id where m.user_id=?', user.id);
-    const proven = new Set(q('select mark_id from recalls where user_id=? and passed=1 and early=0', user.id).map((r) => r.mark_id));
-    const out = [];
-    for (const l of lectures) {
-      const seen = new Map();
-      for (const s of segsOf(l.id)) if (!seen.has(s.concept)) seen.set(s.concept, s);
-      for (const [concept, first] of seen) {
-        const mine = marks.filter((m) => m.lecture_id === l.id && m.concept === concept && m.kind !== 'comment');
-        const repaired = mine.filter((m) => m.status === 'repaired');
-        const state = mine.some((m) => m.status === 'open') ? 'gap' : !repaired.length ? 'plain' : repaired.every((m) => proven.has(m.id)) ? 'proven' : 'mended';
-        out.push({ lecture_id: l.id, lecture: l.title, concept, title: CONCEPTS[concept]?.title || `Part ${concept.replace('part-', '')}`, t_start: first.t_start, state });
-      }
-    }
-    return out;
+    return lectures.map((l) => {
+      const plank = one('select * from planks where user_id=? and lecture_id=?', user.id, l.id);
+      const m = one(`select max(created_at) a, max(repaired_at) b, sum(status='open' and kind!='comment') open, sum(kind='question') asked from marks where user_id=? and lecture_id=?`, user.id, l.id);
+      const p = one('select max(created_at) a from attempts where user_id=? and lecture_id=?', user.id, l.id);
+      const touched = Math.max(l.held_at, m.a || 0, m.b || 0, p.a || 0, plank?.renovated_at || 0);
+      const newer = lectures.filter((x) => x.held_at > touched).length;
+      const level = plank?.level || 0;
+      return {
+        lecture_id: l.id, title: l.title, held_at: l.held_at, source: l.source, live_demo: l.live_demo, mine: !!l.owner_id,
+        level, rot: newer >= ROTTEN_AFTER + level ? 2 : newer >= ROT_AFTER + level ? 1 : 0, newer,
+        open: m.open || 0, asked: m.asked || 0,
+        problems: one('select count(*) n from problems where lecture_id=?', l.id).n,
+      };
+    });
   }
+  const bridgeLevel = (user, courseId) => Math.min(...planks(user, courseId).map((p) => p.level));
 
   function streak(user) {
     const stamps = [
       ...q('select repaired_at t from marks where user_id=? and repaired_at is not null', user.id),
-      ...q('select done_at t from recalls where user_id=? and passed=1', user.id),
+      ...q('select created_at t from attempts where user_id=? and passed=1', user.id),
     ].map((r) => Math.floor(r.t / DAY));
     const days = new Set(stamps);
     let d = Math.floor(now() / DAY);
@@ -93,8 +103,6 @@ export function createHandler(db = openDb()) {
   }
 
   const markRow = `select m.*, s.text seg_text, s.t_start, s.idx, s.concept, l.title lecture from marks m join segments s on s.id=m.segment_id join lectures l on l.id=m.lecture_id`;
-  const recallRow = `select r.*, s.t_start, s.concept, l.title lecture, m.lecture_id from recalls r join marks m on m.id=r.mark_id join segments s on s.id=m.segment_id join lectures l on l.id=m.lecture_id`;
-
   // ---- auth ------------------------------------------------------------
   on('POST', '/api/login', ({ body }) => {
     const name = String(body.name || '').trim().slice(0, 40);
@@ -106,30 +114,16 @@ export function createHandler(db = openDb()) {
     return { token, user: pub(one('select * from users where id=?', id)) };
   }, { open: true });
 
-  on('GET', '/api/home', ({ user }) => {
-    const course = one('select * from courses limit 1');
-    const lectures = q('select * from lectures where owner_id is null or owner_id=? order by held_at desc', user.id).map((l) => ({
-      ...l,
-      open: one(`select count(*) n from marks where user_id=? and lecture_id=? and status='open' and kind!='comment'`, user.id, l.id).n,
-      segments: one('select count(*) n from segments where lecture_id=?', l.id).n,
-    }));
-    return {
-      user: pub(user),
-      ai: ai.aiMode(),
-      course,
-      lectures,
-      planks: planks(user, course.id),
-      streak: streak(user),
-      open: q(`${markRow} where m.user_id=? and m.status='open' and m.kind!='comment' order by m.created_at`, user.id),
-      recalls: q(`${recallRow} where r.user_id=? and r.done_at is null order by r.due_at`, user.id),
-      cards_due: one('select count(*) n from cards where user_id=? and due_at<=?', user.id, now()).n,
-      deadlines: q('select * from deadlines where due_at>? order by due_at', now() - DAY),
-      struggles: STRUGGLES,
-    };
-  });
+  on('GET', '/api/home', ({ user }) => ({
+    user: pub(user),
+    ai: ai.aiMode(),
+    courses: q('select * from courses').map((c) => ({ ...c, planks: planks(user, c.id) })),
+    streak: streak(user),
+    open: q(`${markRow} where m.user_id=? and m.status='open' and m.kind!='comment' order by m.created_at`, user.id),
+    deadlines: q('select * from deadlines where due_at>? order by due_at', now() - DAY).map((d) => ({ ...d, covers: JSON.parse(d.covers) })),
+    areas: AREAS.map((a) => ({ key: a.key, label: a.label, details: a.details.map((d) => ({ key: d.key, label: d.label })) })),
+  }));
 
-  // Starter strategy for a struggle: the one with the biggest week-later lift.
-  const starter = (struggle) => STRATEGIES.filter((s) => s.struggle === struggle).sort((a, b) => b.lift - a.lift)[0];
   const setSettings = (userId, patch) => {
     const cur = one('select settings from users where id=?', userId);
     run('update users set settings=? where id=?', JSON.stringify({ ...JSON.parse(cur.settings || '{}'), ...patch }), userId);
@@ -142,16 +136,16 @@ export function createHandler(db = openDb()) {
     if (settings) setSettings(user.id, settings);
     if (struggles) {
       const before = JSON.parse(user.struggles || '[]');
-      const next = struggles.filter((k, i) => STRUGGLES.some((s) => s.key === k) && struggles.indexOf(k) === i);
+      const next = struggles.filter((k, i) => DETAILS.some((d) => d.key === k) && struggles.indexOf(k) === i);
       run('update users set struggles=? where id=?', JSON.stringify(next), user.id);
-      // A newly picked struggle switches on its starter strategy (and the setting it needs), unless
-      // the student turned recommendations off or already made a choice for that struggle.
+      // A newly picked detail switches on its strategy (and the setting it needs), unless the
+      // student turned recommendations off or already made a choice about that strategy.
       const recsOn = JSON.parse(one('select settings from users where id=?', user.id).settings || '{}').recs !== false;
       for (const key of next.filter((k) => !before.includes(k))) {
-        const s = starter(key);
-        const decided = q('select strategy_id from strategy_use where user_id=?', user.id).some((u) => STRATEGIES.find((x) => x.id === u.strategy_id)?.struggle === key);
-        if (!recsOn || !s || decided) continue;
-        run('insert into strategy_use values(?,?,1,null)', user.id, s.id);
+        const s = DETAILS.find((d) => d.key === key).strategy;
+        const decided = one('select 1 from strategy_use where user_id=? and strategy_id=?', user.id, key);
+        if (!recsOn || decided) continue;
+        run('insert into strategy_use values(?,?,1,null)', user.id, key);
         if (s.setting) setSettings(user.id, s.setting);
       }
     }
@@ -162,8 +156,8 @@ export function createHandler(db = openDb()) {
     exported_at: new Date().toISOString(),
     profile: pub(user),
     marks: q('select * from marks where user_id=?', user.id),
-    recalls: q('select * from recalls where user_id=?', user.id),
-    cards: q('select * from cards where user_id=?', user.id),
+    practice: q('select * from attempts where user_id=?', user.id),
+    planks: q('select * from planks where user_id=?', user.id),
     notes: q('select * from notes where user_id=?', user.id),
     posts: q('select * from posts where user_id=?', user.id),
     strategies: q('select * from strategy_use where user_id=?', user.id),
@@ -174,7 +168,7 @@ export function createHandler(db = openDb()) {
 
   on('DELETE', '/api/me', ({ user }) => {
     for (const l of q('select id from lectures where owner_id=?', user.id)) run('delete from segments where lecture_id=?', l.id);
-    for (const t of ['marks', 'recalls', 'cards', 'notes', 'posts', 'strategy_use', 'accommodations', 'rw_highlights']) run(`delete from ${t} where user_id=?`, user.id);
+    for (const t of ['marks', 'attempts', 'planks', 'notes', 'posts', 'strategy_use', 'accommodations', 'rw_highlights']) run(`delete from ${t} where user_id=?`, user.id);
     run('delete from lectures where owner_id=?', user.id);
     run('delete from users where id=?', user.id);
     return { deleted: true };
@@ -186,6 +180,7 @@ export function createHandler(db = openDb()) {
     return {
       lecture,
       segments: segsOf(lecture.id),
+      ideas: ideasOf(lecture.id),
       marks: q('select * from marks where user_id=? and lecture_id=? order by created_at', user.id, lecture.id),
       notes: one('select * from notes where user_id=? and lecture_id=?', user.id, lecture.id) || { body: '', summary: null },
       posts: posts(lecture.id, user),
@@ -227,7 +222,7 @@ export function createHandler(db = openDb()) {
 
   on('POST', '/api/lectures', ({ user, body }) => {
     const title = String(body.title || '').trim().slice(0, 120) || 'Untitled lecture';
-    const course = one('select id from courses limit 1');
+    const course = one('select id from courses where id=?', String(body.course_id || '')) || one('select id from courses limit 1');
     const id = uid();
     const segs = body.transcript ? parseTranscript(String(body.transcript)) : [];
     if (body.transcript && !segs.length) throw fail(400, 'That transcript looks empty');
@@ -261,17 +256,6 @@ export function createHandler(db = openDb()) {
     const out = await ai.summary({ lectureTitle: lecture.title, segs, notes, lines });
     run('insert into notes(user_id,lecture_id,summary) values(?,?,?) on conflict(user_id,lecture_id) do update set summary=excluded.summary', user.id, lecture.id, out.text);
     return out;
-  });
-
-  on('POST', '/api/lectures/:id/cards', async ({ user, params }) => {
-    const lecture = lectureFor(params.id, user);
-    const segs = segsOf(lecture.id);
-    if (!segs.length) throw fail(400, 'There is no transcript yet');
-    const out = await ai.flashcards({ lectureTitle: lecture.title, segs });
-    const have = new Set(q('select front from cards where user_id=?', user.id).map((c) => c.front));
-    let added = 0;
-    for (const c of out.cards) if (!have.has(c.front)) { run('insert into cards values(?,?,?,?,?,?,0,?)', uid(), user.id, lecture.id, null, c.front, c.back, now()); added++; }
-    return { added, ai: out.ai, ai_error: out.ai_error };
   });
 
   // ---- marks: flags, questions, comments --------------------------------
@@ -312,7 +296,6 @@ export function createHandler(db = openDb()) {
 
   on('DELETE', '/api/marks/:id', ({ user, params }) => {
     const m = markFor(params.id, user);
-    run('delete from recalls where mark_id=?', m.id);
     run('delete from marks where id=?', m.id);
     return { ok: true };
   });
@@ -335,49 +318,89 @@ export function createHandler(db = openDb()) {
     run('update marks set tries=tries+1 where id=?', m.id);
     if (out.passed && m.status !== 'repaired') {
       run(`update marks set status='repaired', repaired_at=?, note_line=?, first_try_pass=? where id=?`, now(), out.note_line, m.tries === 0 ? 1 : 0, m.id);
-      run('insert into recalls(id,user_id,mark_id,question,due_at) values(?,?,?,?,?)', uid(), user.id, m.id, String(body.question || ''), now() + 7 * DAY);
-      run('insert into cards values(?,?,?,?,?,?,0,?)', uid(), user.id, m.lecture_id, m.id, out.card_front, out.card_back, now() + DAY);
     }
     return { passed: out.passed, feedback: out.feedback, note_line: out.passed ? out.note_line : null, ai: out.ai, ai_error: out.ai_error };
   });
 
-  // ---- delayed recall and flashcards -----------------------------------
-  on('GET', '/api/practice', ({ user }) => ({
-    recalls: q(`${recallRow} where r.user_id=? and r.done_at is null order by r.due_at`, user.id),
-    done: q(`${recallRow} where r.user_id=? and r.done_at is not null order by r.done_at desc limit 20`, user.id),
-    cards: q('select * from cards where user_id=? order by due_at', user.id),
-    now: now(),
-  }));
+  // ---- renovating a plank: practice problems set by the instructor -----
+  const Answer = z.object({ answer: z.string().trim().min(1, 'Write or say an answer first').max(4000) });
+  const NewProblem = z.object({ question: z.string().trim().min(5, 'Write the question first').max(1000), answer: z.string().trim().min(1, 'Add a model answer').max(2000) });
+  const parse = (schema, body) => {
+    const out = schema.safeParse(body);
+    if (!out.success) throw fail(400, out.error.issues[0]?.message || 'Bad request');
+    return out.data;
+  };
+  const need = (lectureId) => Math.min(2, one('select count(*) n from problems where lecture_id=?', lectureId).n);
+  const passedSince = (user, lectureId) => {
+    const since = one('select renovated_at t from planks where user_id=? and lecture_id=?', user.id, lectureId)?.t || 0;
+    return q('select distinct problem_id from attempts where user_id=? and lecture_id=? and passed=1 and created_at>?', user.id, lectureId, since).map((r) => r.problem_id);
+  };
 
-  on('POST', '/api/recalls/:id/answer', async ({ user, params, body }) => {
-    const r = one('select * from recalls where id=? and user_id=? and done_at is null', params.id, user.id);
-    if (!r) throw fail(404, 'Not found');
-    const answer = String(body.answer || '').trim();
-    if (!answer) throw fail(400, 'Write or say an answer first');
-    const m = one('select * from marks where id=?', r.mark_id);
-    const out = await ai.grade({ ...ctx(m), question: r.question, answer });
-    const early = r.due_at > now() ? 1 : 0;
-    run('update recalls set done_at=?, passed=?, early=?, answer=?, feedback=? where id=?', now(), out.passed ? 1 : 0, early, answer, out.feedback, r.id);
-    // Not there yet, or checked early: ask again later so the proof is a real delayed recall.
-    if (!out.passed || early) run('insert into recalls(id,user_id,mark_id,question,due_at) values(?,?,?,?,?)', uid(), user.id, r.mark_id, r.question, out.passed ? r.due_at : now() + 2 * DAY);
-    return { passed: out.passed, feedback: out.feedback, early: !!early, ai: out.ai, ai_error: out.ai_error };
+  on('GET', '/api/lectures/:id/practice', async ({ user, params }) => {
+    const lecture = lectureFor(params.id, user);
+    const segs = segsOf(lecture.id);
+    // A personal lecture has no instructor problems, so Norbu writes two from the transcript.
+    if (!need(lecture.id) && segs.length) {
+      for (const seg of [segs[Math.floor(segs.length / 3)], segs[Math.floor((2 * segs.length) / 3)]]) {
+        const out = await ai.riddle({ lectureTitle: lecture.title, segs, seg });
+        run('insert into problems(id,lecture_id,question,answer,segment_id,created_at) values(?,?,?,?,?,?)', uid(), lecture.id, out.question, '', seg.id, now());
+      }
+    }
+    const done = passedSince(user, lecture.id);
+    const all = q('select id, question from problems where lecture_id=? order by created_at, id', lecture.id);
+    const todo = all.filter((p) => !done.includes(p.id));
+    return {
+      lecture: { id: lecture.id, title: lecture.title },
+      level: one('select level from planks where user_id=? and lecture_id=?', user.id, lecture.id)?.level || 0,
+      need: need(lecture.id), done: done.length,
+      problems: (todo.length ? todo : all).slice(0, Math.max(1, need(lecture.id) - done.length)),
+    };
   });
 
-  on('POST', '/api/cards', ({ user, body }) => {
-    const front = String(body.front || '').trim(), back = String(body.back || '').trim();
-    if (!front || !back) throw fail(400, 'A card needs a front and a back');
-    const id = uid();
-    run('insert into cards values(?,?,?,?,?,?,0,?)', id, user.id, body.lecture_id || null, null, front.slice(0, 500), back.slice(0, 1000), now());
-    return one('select * from cards where id=?', id);
+  on('POST', '/api/problems/:id/answer', async ({ user, params, body }) => {
+    const { answer } = parse(Answer, body);
+    const problem = one('select * from problems where id=?', params.id);
+    if (!problem) throw fail(404, 'Not found');
+    const lecture = lectureFor(problem.lecture_id, user);
+    const segs = segsOf(lecture.id);
+    const seg = problem.segment_id && segs.find((s) => s.id === problem.segment_id);
+    const out = seg
+      ? await ai.grade({ lectureTitle: lecture.title, segs, seg, question: problem.question, answer })
+      : await ai.gradeProblem({ lectureTitle: lecture.title, segs, question: problem.question, modelAnswer: problem.answer, keywords: JSON.parse(problem.keywords || '[]'), answer });
+    const first = one('select count(*) n from attempts where user_id=? and problem_id=?', user.id, problem.id).n === 0;
+    const before = bridgeLevel(user, lecture.course_id);
+    run('insert into attempts values(?,?,?,?,?,?,?)', uid(), user.id, lecture.id, problem.id, out.passed ? 1 : 0, first ? 1 : 0, now());
+    let level = one('select level from planks where user_id=? and lecture_id=?', user.id, lecture.id)?.level || 0;
+    const done = passedSince(user, lecture.id).length;
+    const renovated = out.passed && done >= need(lecture.id) && level < MAX_LEVEL;
+    if (renovated) {
+      level += 1;
+      run('insert into planks values(?,?,?,?) on conflict(user_id,lecture_id) do update set level=excluded.level, renovated_at=excluded.renovated_at', user.id, lecture.id, level, now());
+    }
+    const after = bridgeLevel(user, lecture.course_id);
+    return {
+      passed: out.passed, feedback: out.feedback, model_answer: out.passed ? problem.answer || null : null,
+      done: renovated ? 0 : done, need: need(lecture.id), renovated, level,
+      bridge_level: after > before ? after : null, ai: out.ai, ai_error: out.ai_error,
+    };
   });
-  on('POST', '/api/cards/:id/review', ({ user, params, body }) => {
-    const c = one('select * from cards where id=? and user_id=?', params.id, user.id);
-    if (!c) throw fail(404, 'Not found');
-    const box = body.ok ? Math.min(c.box + 1, BOXES.length - 1) : 0;
-    run('update cards set box=?, due_at=? where id=?', box, now() + BOXES[box] * DAY, c.id);
-    return one('select * from cards where id=?', c.id);
+
+  on('POST', '/api/lectures/:id/problems', ({ user, params, body }) => {
+    if (user.role !== 'instructor') throw fail(403, 'Instructors only');
+    const lecture = one('select * from lectures where id=? and owner_id is null', params.id);
+    if (!lecture) throw fail(404, 'Lecture not found');
+    const { question, answer } = parse(NewProblem, body);
+    run('insert into problems(id,lecture_id,question,answer,author_id,created_at) values(?,?,?,?,?,?)', uid(), lecture.id, question, answer, user.id, now());
+    return q('select id, question, answer from problems where lecture_id=? order by created_at, id', lecture.id);
   });
-  on('DELETE', '/api/cards/:id', ({ user, params }) => { run('delete from cards where id=? and user_id=?', params.id, user.id); return { ok: true }; });
+  on('DELETE', '/api/problems/:id', ({ user, params }) => {
+    if (user.role !== 'instructor') throw fail(403, 'Instructors only');
+    const p = one('select * from problems where id=?', params.id);
+    if (!p) throw fail(404, 'Not found');
+    run('delete from attempts where problem_id=?', p.id);
+    run('delete from problems where id=?', p.id);
+    return q('select id, question, answer from problems where lecture_id=? order by created_at, id', p.lecture_id);
+  });
 
   // ---- discussion ------------------------------------------------------
   function posts(lectureId, user) {
@@ -395,36 +418,30 @@ export function createHandler(db = openDb()) {
     return posts(lecture.id, user);
   });
 
-  // ---- what helped students like you -----------------------------------
+  // ---- what gets in the way, and the strategy suggested for each -------
   on('GET', '/api/strategies', ({ user }) => {
-    const students = q(`select * from users where role='student'`).filter(shares);
-    const uses = q('select * from strategy_use where active=1');
-    const recalls = q('select user_id, passed from recalls where done_at is not null and early=0');
-    const rate = (ids) => {
-      const rs = recalls.filter((r) => ids.has(r.user_id));
-      return rs.length ? Math.round((100 * rs.filter((r) => r.passed).length) / rs.length) : null;
-    };
+    const sharing = new Map(q(`select * from users where role='student'`).filter(shares).map((u) => [u.id, u]));
+    const uses = q('select * from strategy_use where helpful is not null').filter((x) => sharing.has(x.user_id));
     const mine = Object.fromEntries(q('select * from strategy_use where user_id=?', user.id).map((u) => [u.strategy_id, u]));
+    const picked = JSON.parse(user.struggles || '[]');
     return {
       min_group: MIN_GROUP,
-      strategies: STRATEGIES.map(({ lift, ...s }) => {
-        const group = students.filter((u) => JSON.parse(u.struggles || '[]').includes(s.struggle));
-        const used = new Set(group.filter((u) => uses.some((x) => x.user_id === u.id && x.strategy_id === s.id)).map((u) => u.id));
-        const not = new Set(group.filter((u) => !used.has(u.id)).map((u) => u.id));
-        const enough = used.size >= MIN_GROUP && not.size >= MIN_GROUP && rate(used) !== null && rate(not) !== null;
+      picked: DETAILS.filter((d) => picked.includes(d.key)).map((d) => {
+        const tried = uses.filter((x) => x.strategy_id === d.key);
+        const { setting: _setting, ...strategy } = d.strategy;
         return {
-          ...s,
-          active: !!mine[s.id]?.active, helpful: mine[s.id]?.helpful ?? null,
-          stat: enough ? { used: used.size, with: rate(used), without: rate(not), demo: group.some((u) => u.synthetic) } : null,
+          key: d.key, label: d.label, area: d.area, strategy,
+          active: mine[d.key] ? !!mine[d.key].active : false, helpful: mine[d.key]?.helpful ?? null,
+          stat: tried.length >= MIN_GROUP ? { tried: tried.length, helped: Math.round((100 * tried.filter((x) => x.helpful).length) / tried.length), demo: tried.some((x) => sharing.get(x.user_id).synthetic) } : null,
         };
       }),
     };
   });
   on('POST', '/api/strategies/:id', ({ user, params, body }) => {
-    const s = STRATEGIES.find((x) => x.id === params.id);
-    if (!s) throw fail(404, 'Not found');
-    run('insert into strategy_use values(?,?,?,?) on conflict(user_id,strategy_id) do update set active=excluded.active, helpful=excluded.helpful', user.id, s.id, body.active ? 1 : 0, body.helpful == null ? null : body.helpful ? 1 : 0);
-    if (s.setting && body.active) run('update users set settings=? where id=?', JSON.stringify({ ...JSON.parse(user.settings || '{}'), ...s.setting }), user.id);
+    const d = DETAILS.find((x) => x.key === params.id);
+    if (!d) throw fail(404, 'Not found');
+    run('insert into strategy_use values(?,?,?,?) on conflict(user_id,strategy_id) do update set active=excluded.active, helpful=excluded.helpful', user.id, d.key, body.active ? 1 : 0, body.helpful == null ? null : body.helpful ? 1 : 0);
+    if (d.strategy.setting && body.active) run('update users set settings=? where id=?', JSON.stringify({ ...JSON.parse(user.settings || '{}'), ...d.strategy.setting }), user.id);
     return { ok: true, user: pub(one('select * from users where id=?', user.id)) };
   });
 
@@ -436,7 +453,7 @@ export function createHandler(db = openDb()) {
     const segs = segsOf(lecture.id);
     const sharing = new Map(q(`select * from users where role='student'`).filter(shares).map((u) => [u.id, u]));
     const marks = q(`select m.*, s.concept from marks m join segments s on s.id=m.segment_id where m.lecture_id=? and m.kind!='comment'`, lecture.id).filter((m) => sharing.has(m.user_id));
-    const recalls = q('select r.mark_id, r.passed from recalls r where r.done_at is not null and r.early=0');
+    const firsts = q('select user_id, passed from attempts where lecture_id=? and first_try=1', lecture.id).filter((a) => sharing.has(a.user_id));
     const class_size = sharing.size;
     const people = (ms) => new Set(ms.map((m) => m.user_id)).size;
     const pct = (a, b) => (b ? Math.round((100 * a) / b) : null);
@@ -447,19 +464,19 @@ export function createHandler(db = openDb()) {
       const base = { concept: c, title: CONCEPTS[c]?.title || `Part ${c.replace('part-', '')}`, t_start: first.t_start };
       if (n < MIN_GROUP) return { ...base, suppressed: true };
       const tried = ms.filter((m) => m.first_try_pass != null);
-      const rs = recalls.filter((r) => ms.some((m) => m.id === r.mark_id));
       const qs = {};
       for (const m of ms) if (m.kind === 'question' && m.body) qs[m.body] = (qs[m.body] || 0) + 1;
       return {
         ...base, students: n, share: pct(n, class_size),
         repaired: pct(ms.filter((m) => m.status === 'repaired').length, ms.length),
         first_try: tried.length >= MIN_GROUP ? pct(tried.filter((m) => m.first_try_pass).length, tried.length) : null,
-        recall: rs.length >= MIN_GROUP ? pct(rs.filter((r) => r.passed).length, rs.length) : null,
         questions: people(ms.filter((m) => m.kind === 'question')) >= MIN_GROUP ? Object.entries(qs).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([text, count]) => ({ text, count })) : [],
       };
     });
     return {
-      lecture, class_size, min_group: MIN_GROUP, demo: [...sharing.values()].some((u) => u.synthetic), concepts,
+      lecture, class_size, min_group: MIN_GROUP,
+      problems: q('select id, question, answer from problems where lecture_id=? order by created_at, id', lecture.id),
+      practice: people(firsts) >= MIN_GROUP ? { students: people(firsts), first_try: pct(firsts.filter((a) => a.passed).length, firsts.length) } : null, demo: [...sharing.values()].some((u) => u.synthetic), concepts,
       segments: segs.map((s) => {
         const n = people(marks.filter((m) => m.segment_id === s.id));
         return { id: s.id, idx: s.idx, t_start: s.t_start, text: s.text, concept: s.concept, students: n >= MIN_GROUP ? n : null };

@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react';
 import { api, go, useAsync, LevelDial, Switch, Toggle, type Home, type Integrations, type Settings } from './ui';
-import { ProfileSection, WhatHelps, useStrategies } from './Strategies';
+import { StrugglesSection } from './Strategies';
 
 export function SettingsPage({ home, section, reload, signOut }: { home: Home; section?: string; reload: () => void; signOut: () => void }) {
   const user = home.user;
   const s = user.settings;
-  const strategies = useStrategies();
   const integrations = useAsync<Integrations>(() => api('/integrations'), []);
   useEffect(() => {
     const target = section === 'help' ? 'what-helps' : section;
@@ -25,7 +24,7 @@ export function SettingsPage({ home, section, reload, signOut }: { home: Home; s
   return (
     <main className="page narrow">
       <h1>Settings</h1>
-      {student && <ProfileSection home={home} strategies={strategies} reload={reload} />}
+      {student && <StrugglesSection home={home} reload={reload} />}
 
       <section className="card stack">
         <h2>Reading</h2>
@@ -61,8 +60,6 @@ export function SettingsPage({ home, section, reload, signOut }: { home: Home; s
             <Toggle checked={!!s.wordHighlight} onChange={(v) => save({ wordHighlight: v })}>Highlight the current word during a replay</Toggle>
           </section>
 
-          <WhatHelps home={home} strategies={strategies} />
-
           <section className="card stack" id="integrations">
             <h2>Connected tools</h2>
             <div className="integration">
@@ -86,7 +83,7 @@ export function SettingsPage({ home, section, reload, signOut }: { home: Home; s
 
           <section className="card stack">
             <h2>Daily reminder</h2>
-            <p className="muted">One nudge a day at a time you choose. It mentions planks to mend, never a lost streak.</p>
+            <p className="muted">One nudge a day at a time you choose. It mentions gaps to mend, never a lost streak.</p>
             <label>Remind me at
               <input type="time" value={s.reminder || ''} onChange={(e) => save({ reminder: e.target.value })} />
             </label>

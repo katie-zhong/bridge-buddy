@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
-import { api, go, session, profile, signIn, DEMO_NAME, useAsync, when, stamp, Switch, type Home, type Mark, type User } from './ui';
-import { Bridge, PlankIcon, Troll, type PlankState } from './Troll';
+import { api, go, session, MATERIALS, profile, signIn, DEMO_NAME, useAsync, when, Switch, type Home, type User } from './ui';
+import { Troll } from './Troll';
+import { BridgeMap, rotWord } from './Map';
+import { Renovate } from './Renovate';
 import { Welcome } from './Welcome';
 import { LectureView, NewLecture } from './Lecture';
 import { Repair } from './Repair';
-import { Practice } from './Practice';
-import { StrategyChips } from './Strategies';
 import { Community, OfficeHoursRow } from './Community';
 import { Instructor } from './Instructor';
 import { SettingsPage } from './Settings';
@@ -83,107 +83,65 @@ function applyPrefs(u?: User) {
   root.dataset.calm = s.calm ? '1' : '';
 }
 
-const FlameIcon = () => <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden><path d="M10 2c1 4 6 6 6 11a6 6 0 0 1-12 0c0-3 2-4 3-6 0 2 1 3 2 3 0-3-1-5 1-8z" fill="#e2a43b" filter="url(#paint)" /></svg>;
-const CardsIcon = () => <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden><rect x="5" y="3" width="11" height="14" rx="2.5" fill="#8cc5c6" transform="rotate(10 10 10)" /><rect x="3" y="4" width="11" height="14" rx="2.5" fill="#4c9aa6" /></svg>;
+const date = (ts: number) => new Date(ts * 1000).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
 
 function Today({ home }: { home: Home }) {
-  const { planks, streak, open, recalls, deadlines, course } = home;
+  const { courses, streak, open, deadlines } = home;
+  const [adding, setAdding] = useState<string | null>(null);
+  const planks = courses.flatMap((c) => c.planks);
+  const rotting = planks.filter((p) => p.rot > 0).length, gaps = planks.filter((p) => p.open > 0).length;
+  const mood = gaps || rotting ? 'think' : 'idle';
+  const line = gaps ? `${gaps} ${gaps === 1 ? 'plank has a gap' : 'planks have gaps'}.`
+    : rotting ? `${rotting} ${rotting === 1 ? 'plank is' : 'planks are'} rotting.`
+    : 'Your bridges are holding.';
+  const addTo = courses.find((c) => c.id === adding);
   const now = Date.now() / 1000;
-  const due = recalls.filter((r) => r.due_at <= now);
-  const count = (s: string) => planks.filter((p) => p.state === s).length;
-  const mood = open.length ? 'think' : 'idle';
-  const gaps = count('gap');
-  const fresh = planks.every((p) => p.state === 'plain') && !recalls.length;
-  const demo = home.lectures.find((l) => l.live_demo);
-  const line = gaps ? `${gaps === 1 ? 'One plank needs' : `${gaps === 2 ? 'Two' : gaps} planks need`} you.`
-    : due.length ? 'A riddle is waiting.'
-    : fresh ? 'Press F when you get lost.' : 'Your bridge is holding.';
-  // The idea a flag belongs to: the plank of that lecture that starts at or before the flagged moment.
-  const ideaOf = (m: Mark) => [...planks].reverse().find((p) => p.lecture_id === m.lecture_id && p.t_start <= (m.t_start || 0))?.title;
-  const legend: [PlankState, string][] = [['gap', 'missing'], ['mended', 'patched'], ['proven', 'proven'], ['plain', 'sound']];
   return (
     <main className="page">
-      <section className="hero card">
-        <div className="herohead">
-          <div>
-            <p className="eyebrow">{course.code}</p>
-            <h1>Hi {home.user.name}. {line}</h1>
-          </div>
-          <div className="herochips">
-            <span className={`pill streak ${streak.today ? 'lit' : ''}`} title="Days in a row with a riddle solved. Logging in does not count."><FlameIcon />{streak.days} day{streak.days === 1 ? '' : 's'}</span>
-            {home.cards_due > 0 && <button className="pill cards" onClick={() => go('/practice')} title="Flashcards ready to review"><CardsIcon />{home.cards_due} card{home.cards_due === 1 ? '' : 's'}</button>}
-          </div>
+      <div className="between wrap maphead">
+        <h1>Hi {home.user.name}. {line}</h1>
+        <div className={`streak ${streak.today ? 'lit' : ''}`} title="Days in a row you mended a gap or solved a practice problem. Logging in does not count.">
+          <strong>{streak.days}</strong><span>day{streak.days === 1 ? '' : 's'} building</span>
         </div>
-        <Bridge planks={planks} examLabel={course.exam_label} examIn={when(course.exam_at)} mood={mood} />
-        <div className="between wrap legendrow">
-          <ul className="legend">
-            {legend.map(([st, word]) => <li key={st} title={word}><PlankIcon state={st} /><b>{count(st)}</b><span className="sr"> {word}</span></li>)}
-          </ul>
-          <span className="fine">Hover a plank to see the idea</span>
-        </div>
-      </section>
-
-      {fresh && demo && (
-        <section className="card starthere">
-          <Troll size={72} />
-          <div>
-            <h2>Start here</h2>
-            <p>Sit in on today's lecture. Press <kbd>F</kbd> when you get lost.</p>
-            <button className="primary" onClick={() => go(`/lecture/${demo.id}`)}>Open {demo.title.split(':')[0]}</button>
-          </div>
-        </section>
-      )}
-
-      <div className="cols">
-        <section className="card">
-          <h2>Today</h2>
-          {!open.length && !due.length && <p className="muted">Nothing to mend.</p>}
-          <ul className="todo">
-            {open.map((m) => (
-              <li key={m.id} className="row static">
-                <PlankIcon state="gap" />
-                <span><strong>{(m.kind === 'question' && m.body) || ideaOf(m) || `${(m.seg_text || '').slice(0, 48)}…`}</strong></span>
-                <span className="mono muted">{stamp(m.t_start || 0)}</span>
-                <button className="primary small" onClick={() => go(`/repair/${m.id}`)}>Mend</button>
-              </li>
-            ))}
-            {due.map((r) => (
-              <li key={r.id} className="row static">
-                <PlankIcon state="mended" />
-                <span><strong>Week-later riddle</strong></span>
-                <span className="mono muted">{stamp(r.t_start)}</span>
-                <button className="ghost small" onClick={() => go('/practice')}>Try</button>
-              </li>
-            ))}
-          </ul>
-          <StrategyChips home={home} />
-        </section>
-
-        <section className="card">
-          <h2>Coming up</h2>
-          <ul className="todo">
-            <OfficeHoursRow />
-            {deadlines.map((d) => (
-              <li key={d.id} className="row static">
-                <span className={`tag day ${d.due_at - now < 2.5 * 86400 ? 'soon' : ''}`}>{when(d.due_at)}</span>
-                <span><strong>{d.title}{d.course !== course.code ? ` · ${d.course.split(' ')[0]}` : ''}</strong></span>
-              </li>
-            ))}
-          </ul>
-        </section>
       </div>
+      <BridgeMap courses={courses} open={open} mood={mood} onAdd={setAdding} />
+      <ul className="legend">
+        {MATERIALS.map((m, i) => <li key={m}><i className={`sw m${i}`} />{m}</li>)}
+        <li><i className="sw rotsw" />Rotting</li>
+        <li><i className="sw gapsw" />Gap flagged</li>
+      </ul>
 
-      <section className="card">
-        <div className="between"><h2>Lectures</h2><NewLecture /></div>
-        <ul className="todo">
-          {home.lectures.map((l) => (
-            <li key={l.id}><button className="row" onClick={() => go(`/lecture/${l.id}`)}>
-              <span><strong>{l.title}</strong><small>{when(l.held_at)} · {Math.round(((l.segments || 0) * 30) / 60)} min</small></span>
-              {l.open ? <span className="gapcount" title={`${l.open} missing`}><PlankIcon state="gap" size={28} /><b>{l.open}</b><span className="sr"> missing</span></span> : null}<span className="chev">›</span>
-            </button></li>
-          ))}
-        </ul>
-      </section>
+      <h2 className="sectionhead">Coming up</h2>
+      <ul className="todo officehours"><OfficeHoursRow /></ul>
+      <div className="deadlines">
+        {deadlines.map((d) => {
+          const course = courses.find((c) => c.id === d.course_id);
+          const covered = planks.filter((p) => d.covers.includes(p.lecture_id));
+          return (
+            <article key={d.id} className="card deadline">
+              <div className="between">
+                <span className={`tag ${d.due_at - now < 2.5 * 86400 ? 'soon' : ''}`}>{when(d.due_at)}</span>
+                <small>{date(d.due_at)}</small>
+              </div>
+              <h3>{d.title}</h3>
+              <p className="muted">{course?.code} · {d.kind}{d.weight ? ` · ${d.weight}% of grade` : ''} · from {d.source}</p>
+              <p>{d.detail}</p>
+              {covered.length > 0 && (
+                <div className="covers">
+                  <small>Planks it covers</small>
+                  {covered.map((p) => (
+                    <button key={p.lecture_id} className={`cover ${p.rot || p.open ? 'weak' : ''}`} onClick={() => go(`/renovate/${p.lecture_id}`)} title={`Renovate ${p.title}`}>
+                      <i className={`sw m${p.level}`} />{p.title.split(':')[0]}
+                      <span>{[p.open ? 'gap' : '', rotWord(p).toLowerCase()].filter(Boolean).join(', ') || MATERIALS[p.level].toLowerCase()}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </article>
+          );
+        })}
+      </div>
+      {addTo && <NewLecture course={addTo} onClose={() => setAdding(null)} />}
     </main>
   );
 }
@@ -229,6 +187,8 @@ export function App() {
   const user = home.data?.user;
 
   useEffect(() => applyPrefs(user), [user]);
+  // Coming back to the map: fetch it again, so a lecture added or worked on elsewhere shows up.
+  useEffect(() => { if (authed && hash === '/') home.reload(); }, [hash]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (toast) { const t = setTimeout(() => setToast(''), 4500); return () => clearTimeout(t); } }, [toast]);
 
   // Daily reminder at the time the student chose. Fires while Bridgeway is open in a tab.
@@ -244,7 +204,7 @@ export function App() {
       if (hm !== at || fired) return;
       try { localStorage.setItem(key, '1'); } catch { /* ignore */ }
       const n = home.data?.open.length || 0;
-      const msg = n ? `${n} plank${n === 1 ? '' : 's'} to mend. Five minutes is enough.` : 'Your bridge is holding. One riddle to keep it that way?';
+      const msg = n ? `${n} gap${n === 1 ? '' : 's'} to mend. Five minutes is enough.` : 'Your bridges are holding. Renovate one plank to keep them that way?';
       if ('Notification' in window && Notification.permission === 'granted') new Notification('Bridgeway', { body: msg });
       else setToast(msg);
     };
@@ -262,7 +222,7 @@ export function App() {
   const instructor = h.user.role === 'instructor';
   const nav = instructor
     ? [['/teach', 'Class view']]
-    : [['/', 'Bridge'], ['/practice', 'Practice'], ['/community', 'Community']];
+    : [['/', 'Map'], ['/community', 'Community']];
   const reload = () => home.reload();
   const signOut = () => {
     const p = profile.get();
@@ -273,8 +233,8 @@ export function App() {
   let screen;
   if (!instructor && !h.user.settings.onboarded) screen = <Welcome home={h} reload={reload} />;
   else if (parts[0] === 'lecture') screen = <LectureView key={parts[1]} id={parts[1]} home={h} startAt={Number(new URLSearchParams(query).get('t')) || undefined} reload={reload} toast={setToast} />;
-  else if (parts[0] === 'repair') screen = <><Today home={h} /><Repair id={parts[1]} user={h.user} onClose={() => { reload(); history.length > 1 ? history.back() : go('/'); }} /></>;
-  else if (parts[0] === 'practice') screen = <Practice reload={reload} />;
+  else if (parts[0] === 'repair') screen = <><Today home={h} /><Repair id={parts[1]} user={h.user} onClose={() => { reload(); go('/'); }} /></>;
+  else if (parts[0] === 'renovate') screen = <><Today home={h} /><Renovate id={parts[1]} onClose={() => { reload(); go('/'); }} /></>;
   else if (parts[0] === 'community') screen = <Community home={h} query={new URLSearchParams(query)} />;
   else if (parts[0] === 'settings' || parts[0] === 'help') screen = <SettingsPage home={h} section={parts[0] === 'help' ? 'help' : parts[1]} reload={reload} signOut={signOut} />;
   else if (parts[0] === 'teach' || instructor) screen = <Instructor home={h} />;

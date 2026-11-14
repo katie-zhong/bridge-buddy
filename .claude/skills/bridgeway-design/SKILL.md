@@ -30,25 +30,35 @@ easier to read.
 
 ## The bridge metaphor (keep it consistent)
 
-Every idea taught is one **wooden plank** on the bridge to the next exam. Draw planks only with
-`PlankArt` / `PlankIcon` from `src/Troll.tsx`; never re-draw them.
+The home screen is a **top-down map**: one river, one bridge per course, **one plank per lecture**.
+Those planks are drawn by `PlankArt` in `src/Map.tsx`; never re-draw them elsewhere.
+
+- **Material** says how often the plank was renovated: driftwood → oak → stone → iron → gold
+  (`MATERIALS` in `ui.tsx`, swatch classes `.m0`–`.m4`).
+- **Rot** (moss, then bites out of the edge) means newer lectures have piled up since the
+  student last worked on it. **A dashed hole with a `?`** means an open flag in that lecture.
+- Shape carries the state as well as colour (uneven boards, seams, rivets, moss, holes).
+
+Inside a lecture, each **idea** is drawn with `PlankArt` / `PlankIcon` from `src/Troll.tsx`:
 
 | State | Meaning | Looks like |
 |---|---|---|
 | `plain` | taught, no gap flagged ("sound") | bare wood, grain and a knot |
 | `gap` | flagged as lost ("missing") | an empty dashed hole with a `?` |
 | `mended` | riddle passed ("patched") | amber-stained wood with a nailed batten across it |
-| `proven` | week-later recall passed | green-sealed wood with a tick |
 
-Repair words: flag → **missing plank** → **mend / patch** → **prove**. Shape carries the state as
-well as colour (hole, batten, tick), so it never depends on colour alone.
+(`proven` still exists in the icon set but nothing uses it since recall riddles were removed.)
+
+Words: flag → **gap** → **mend** (one idea), and **renovate** (a whole lecture's plank, by practice).
 
 ## Norbu the troll
 
-`TrollArt` in `src/Troll.tsx`: small furry troll, tall ears, no outlines. Default (`idle`) is a
-**closed smile with one tooth**; `think` is a flat mouth; `happy` is the open toothy grin and is
-used **only when a riddle or recall is answered well** (not for greetings or the home screen). Keep the silhouette; add
-new moods rather than new characters. The face (eyes, mouth) stays unfiltered and high-contrast.
+`TrollArt` in `src/Troll.tsx`: small furry troll, **green all over** (so the teeth read clearly),
+tall ears, no outlines. Default (`idle`) is a closed smile with **two fangs showing**; `think` is a
+flat mouth; `happy` is a too-wide grin with every tooth and is used **only when a riddle or a
+practice problem is answered well, or a plank is renovated** (not for greetings or the home
+screen). Keep the silhouette; add new moods rather than new characters. The face (eyes, mouth)
+stays unfiltered and high-contrast.
 
 ## Copy and layout
 
@@ -57,8 +67,8 @@ new moods rather than new characters. The face (eyes, mouth) stays unfiltered an
 - Plain words, short sentences, sentence case. No diagnoses, no guilt about streaks.
 - Demo data is always labelled as demo data.
 - Names: the app is **Bridgeway**; the troll who speaks, explains and asks riddles is **Norbu**.
-- Navigation: Bridge, Practice and Community as tabs; Settings is the gear at the top right.
-  Profile (struggles + strategy checkboxes), What helps and Connected tools live inside Settings.
+- Navigation: Map and Community as tabs; Settings is the gear at the top right.
+  What gets in the way (areas, then details), the suggested strategies and Connected tools live inside Settings.
 - On/off settings use `Switch` (role="switch"); picking several items uses checkboxes.
 - Third-party tools (Brightspace, Teams, Read&Write) are labelled by name, and mock data as demo.
 

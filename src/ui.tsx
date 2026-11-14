@@ -39,10 +39,6 @@ export function nextSlot(day: number, hhmm: string, from = new Date()): Date {
 export const mailto = (to: string, subject: string, body: string) =>
   `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 
-export interface Strategy {
-  id: string; struggle: string; title: string; how: string; setting?: Settings; active: boolean; helpful: number | null;
-  stat: { used: number; with: number; without: number; demo: boolean } | null;
-}
 export interface User { id: string; name: string; role: 'student' | 'instructor'; settings: Settings; struggles: string[] }
 export interface Segment { id: string; idx: number; t_start: number; t_end: number; text: string; concept: string }
 export interface Mark {
@@ -50,16 +46,20 @@ export interface Mark {
   answer: string | null; level: Level; status: 'open' | 'repaired' | 'resolved'; note_line: string | null;
   seg_text?: string; t_start?: number; lecture?: string; around?: Segment[]; ai_error?: string;
 }
-export interface Plank { lecture_id: string; lecture: string; concept: string; title: string; t_start: number; state: 'plain' | 'gap' | 'mended' | 'proven' }
-export interface Recall { id: string; mark_id: string; question: string; due_at: number; done_at: number | null; passed: number | null; feedback: string | null; t_start: number; lecture: string; lecture_id: string }
-export interface Card { id: string; front: string; back: string; box: number; due_at: number }
+export interface Plank {
+  lecture_id: string; title: string; held_at: number; source: string; live_demo: number; mine: boolean;
+  level: number; rot: 0 | 1 | 2; newer: number; open: number; asked: number; problems: number;
+}
+/** One course as it appears on the map: its bridge and the planks (lectures) on it. */
+export interface CourseBridge { id: string; code: string; title: string; exam_label: string; exam_at: number; theme: string; planks: Plank[] }
+export interface Deadline { id: string; course_id: string; title: string; due_at: number; source: string; kind: string; detail: string; weight: number | null; covers: string[] }
+export interface Area { key: string; label: string; details: { key: string; label: string }[] }
+export const MATERIALS = ['Driftwood', 'Oak', 'Stone', 'Iron', 'Gold'];
 export interface Lecture { id: string; title: string; held_at: number; source: string; live_demo: number; owner_id: string | null; open?: number; segments?: number }
 export interface Post { id: string; segment_id: string | null; parent_id: string | null; body: string; author: string; instructor: boolean; mine: boolean; created_at: number }
 export interface Home {
-  user: User; ai: 'claude' | 'offline'; course: { code: string; title: string; exam_label: string; exam_at: number };
-  lectures: Lecture[]; planks: Plank[]; streak: { days: number; today: boolean }; open: Mark[]; recalls: Recall[];
-  cards_due: number; deadlines: { id: string; course: string; title: string; due_at: number; source: string; kind: string }[];
-  struggles: { key: string; label: string }[];
+  user: User; ai: 'claude' | 'offline'; courses: CourseBridge[]; streak: { days: number; today: boolean };
+  open: Mark[]; deadlines: Deadline[]; areas: Area[];
 }
 
 // ---- api ---------------------------------------------------------------
