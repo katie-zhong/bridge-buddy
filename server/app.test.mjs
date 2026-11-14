@@ -225,3 +225,39 @@ test('every course names its exam the same way', async () => {
   assert.deepEqual(data.courses.map((c) => c.exam_label), ['Midterm 1', 'Midterm 1', 'Midterm 1']);
   assert.ok(data.deadlines.filter((d) => d.kind === 'Exam').every((d) => d.title === 'Midterm 1'));
 });
+
+test('the login body is validated', async () => {
+  assert.equal((await call(null, '/login', 'POST', { name: '' })).status, 400);
+  assert.equal((await call(null, '/login', 'POST', { name: 'X', role: 'admin' })).status, 400);
+  assert.equal((await call(null, '/login', 'POST', { name: 'Ok', role: 'student', demo: true })).status, 200);
+});
+
+test('instructor view counts flags only from students who opted in, and never shows what they typed', async () => {
+  const prof = await login('Dr. Lee', 'instructor');
+  const lecture = (await call(prof, '/lectures/econ101-l3')).data;
+  const seg = lecture.segments.at(-1);
+  const count = async () => (await call(prof, '/instructor/lectures/econ101-l3')).data.segments.find((s) => s.id === seg.id).students ?? 0;
+  const before = await count();
+
+  const kids = [];
+  for (let i = 0; i < 5; i++) {
+    const k = await login(`Kid ${i}`);
+    await call(k, '/marks', 'POST', { lecture_id: 'econ101-l3', segment_id: seg.id, kind: 'question', body: `secret question ${i}` });
+    kids.push(k);
+  }
+  assert.equal(await count(), before, 'not shared by default');
+  for (const k of kids) await call(k, '/me', 'PATCH', { settings: { shareFlags: true } });
+  assert.ok((await count()) >= before + 5, 'counted once shared');
+
+  const detail = JSON.stringify((await call(prof, '/instructor/lectures/econ101-l3')).data);
+  const overview = (await call(prof, '/instructor/overview')).data;
+  for (const text of [detail, JSON.stringify(overview)]) {
+    assert.ok(!text.includes('secret question'));
+    assert.ok(!text.includes('Kid 0'));
+  }
+  assert.ok(overview.sharing >= overview.min_group);
+  assert.ok(overview.lectures.length >= 2);
+  for (const s of overview.strategies) assert.ok(s.students === null || s.students >= overview.min_group);
+  assert.ok(overview.strategies.every((s) => !('struggle' in s) && s.title));
+  assert.equal((await call(kids[0], '/instructor/overview')).status, 403);
+});

@@ -255,9 +255,6 @@ thead th { border: 0; font-size: .78rem; color: var(--muted); } tbody th { font-
 .switch input:checked + .track { background: var(--moss); } .switch input:checked + .track .knob { transform: translateX(20px); }
 .switch input:focus-visible + .track { outline: 3px solid var(--amber); outline-offset: 2px; }
 .switch input:disabled + .track { opacity: .5; }
-.roleswitch { display: inline-flex; align-items: center; gap: .5rem; font-size: .88rem; font-weight: 700; color: var(--muted); background: var(--paper); border-radius: 99px; padding: 0 .8rem; }
-.roleswitch .switch { min-height: 40px; } .roleswitch .on { color: var(--moss); }
-.roleswitch .switch input:not(:checked) + .track { background: var(--moss); }
 
 /* community: office hours, contacts */
 a.btn { display: inline-flex; align-items: center; gap: .45rem; text-decoration: none; padding: .55rem .95rem; min-height: 44px; border-radius: 12px; color: var(--ink); font-weight: 700; }
@@ -367,3 +364,19 @@ a.btn.primary { color: var(--card); } a.btn.small { min-height: 36px; padding: .
 @keyframes fall { to { transform: translateY(460px) rotate(540deg); opacity: 0; } }
 .troll.happy { animation: hop .7s ease-in-out 3; }
 .problemlist { list-style: none; padding: 0; margin: 0 0 1rem; } .problemlist li { display: flex; gap: .7rem; justify-content: space-between; align-items: center; padding: .5rem 0; border-top: 1.5px solid var(--line); }
+
+/* demo role switch (header) */
+.roleswitch { display: inline-flex; align-items: center; gap: 2px; padding: 3px; border-radius: 14px; background: var(--paper); flex: none; }
+.roleswitch .tag { margin: 0 .35rem 0 .2rem; }
+.roleswitch button { border-radius: 11px; min-height: 36px; padding: .2rem .7rem; font-size: .88rem; font-weight: 700; }
+.roleswitch button.on { background: var(--moss); color: var(--card); }
+@media (max-width: 560px) { .top { flex-wrap: wrap; row-gap: .3rem; } .roleswitch { order: 3; width: 100%; } .roleswitch button { flex: 1; } }
+
+/* instructor dashboard */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; margin: .4rem 0 1rem; }
+.kpi { margin: 0; display: flex; flex-direction: column; gap: .1rem; }
+.kpi strong { font: 600 1.9rem var(--display); line-height: 1.1; } .kpi span { color: var(--muted); font-size: .88rem; }
+.row[aria-pressed='true'] { background: var(--moss-soft); }
+.meter.use i { background: var(--moss); }
+td.num { white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
+.cols.start { align-items: start; }

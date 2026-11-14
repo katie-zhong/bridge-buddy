@@ -74,6 +74,7 @@ function seed(db) {
   }
   for (const d of DEADLINES) db.prepare('insert into deadlines values(?,?,?,?,?,?,?,?,?)').run(uid(), d.course, d.title, t + d.in_days * DAY, d.source, d.kind, d.detail, d.weight, JSON.stringify(d.covers));
   seedCohort(db, t);
+  shareCohortFlags(db);
 }
 
 // A synthetic class of 84 students so that the aggregate views (instructor heatmap,
@@ -121,4 +122,13 @@ function seedCohort(db, t) {
     }
   }
   db.exec('commit');
+}
+
+// Sharing flags with the instructor is opt-in. About two thirds of the synthetic cohort opted in,
+// so the class view has something to show. Idempotent: only touches synthetic users with no settings
+// (also upgrades demo databases created before this setting existed).
+function shareCohortFlags(db) {
+  const users = db.prepare(`select id from users where synthetic=1 and (settings is null or settings='{}')`).all();
+  const set = db.prepare('update users set settings=? where id=?');
+  for (const u of users) set.run(JSON.stringify({ shareFlags: Number(u.id.replace('demo-', '')) % 3 !== 0 }), u.id);
 }

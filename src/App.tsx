@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api, go, session, MATERIALS, profile, signIn, DEMO_NAME, useAsync, when, Switch, type Home, type User } from './ui';
+import { api, go, session, MATERIALS, profile, signIn, switchDemoRole, clearDemoTokens, DEMO_NAME, useAsync, when, Switch, type Home, type User } from './ui';
 import { MaterialIcon, Troll } from './Troll';
 import { BridgeView, ForestMap, MapLegend, rotWord } from './Map';
 import { Renovate } from './Renovate';
@@ -33,7 +33,7 @@ function Login({ onDone }: { onDone: () => void }) {
     if (!who) return;
     setBusy(true);
     try {
-      await signIn(who, role);
+      await signIn(who, role, demo);
       profile.set({ name: who, role, demo });
       go(role === 'instructor' ? '/teach' : '/');
       onDone();
@@ -67,7 +67,7 @@ function useDemoSignIn(authed: boolean, onDone: () => void) {
   const [pending, setPending] = useState(!!p?.demo);
   useEffect(() => {
     if (!p?.demo) return;
-    signIn(p.name, p.role)
+    signIn(p.name, p.role, true)
       .then(() => { if (p.role === 'instructor' && !location.hash) go('/teach'); onDone(); })
       .catch(() => setPending(false)); // server unreachable: fall back to the login screen
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -156,35 +156,31 @@ function Today({ home, courseId }: { home: Home; courseId?: string }) {
   );
 }
 
-/** Demo mode only: flip between the student and instructor views as the same person. */
-function RoleSwitch({ role, reload }: { role: User['role']; reload: () => void }) {
-  const [busy, setBusy] = useState(false);
-  const flip = async (toInstructor: boolean) => {
-    const p = profile.get();
-    if (!p) return;
-    const next = toInstructor ? 'instructor' : 'student';
-    setBusy(true);
-    try {
-      await signIn(p.name, next);
-      profile.set({ ...p, role: next });
-      go(next === 'instructor' ? '/teach' : '/');
-      reload();
-    } finally { setBusy(false); }
-  };
-  return (
-    <span className="roleswitch" title="Demo mode: switch between the student and instructor views">
-      <span className={role === 'student' ? 'on' : ''} aria-hidden>Student</span>
-      <Switch checked={role === 'instructor'} disabled={busy} onChange={flip}><span className="sr">Instructor view</span></Switch>
-      <span className={role === 'instructor' ? 'on' : ''} aria-hidden>Instructor</span>
-    </span>
-  );
-}
-
 function GearIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden>
       <path fill="currentColor" fillRule="evenodd" d="M10.3 2h3.4l.5 2.6c.6.2 1.2.5 1.7.9l2.5-.9 1.7 2.9-2 1.8c.1.6.1 1.2 0 1.8l2 1.8-1.7 2.9-2.5-.9c-.5.4-1.1.7-1.7.9l-.5 2.6h-3.4l-.5-2.6c-.6-.2-1.2-.5-1.7-.9l-2.5.9-1.7-2.9 2-1.8a5.6 5.6 0 0 1 0-1.8l-2-1.8 1.7-2.9 2.5.9c.5-.4 1.1-.7 1.7-.9zM12 8.6a3.4 3.4 0 1 0 0 6.8 3.4 3.4 0 0 0 0-6.8z" transform="translate(0 1)" />
     </svg>
+  );
+}
+
+/** Demo mode only: flip between the student and the teacher view. */
+function RoleSwitch({ role }: { role: User['role'] }) {
+  const [busy, setBusy] = useState(false);
+  const pick = async (r: User['role']) => {
+    if (r === role || busy) return;
+    setBusy(true);
+    try { await switchDemoRole(r); } catch { setBusy(false); }
+  };
+  return (
+    <div className="roleswitch" role="radiogroup" aria-label="Demo: view as">
+      <span className="tag">Demo</span>
+      {(['student', 'instructor'] as const).map((r) => (
+        <button key={r} type="button" role="radio" aria-checked={role === r} className={role === r ? 'on' : ''} disabled={busy} onClick={() => pick(r)}>
+          {r === 'student' ? 'Student' : 'Teacher'}
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -237,6 +233,7 @@ export function App() {
   const signOut = () => {
     const p = profile.get();
     if (p) profile.set({ ...p, demo: false }); // keep the name and role for next time, but show the login screen
+    clearDemoTokens();
     session.token = null; go('/'); location.reload();
   };
 
@@ -259,8 +256,7 @@ export function App() {
         <nav aria-label="Main">
           {(instructor || h.user.settings.onboarded) && nav.map(([to, label]) => <a key={to} href={`#${to}`} aria-current={path === to ? 'page' : undefined}>{label}</a>)}
         </nav>
-        {h.ai === 'offline' && <span className="tag" title="No Claude API key on the server. Norbu answers from built-in course content.">Offline tutor</span>}
-        {profile.get()?.demo && <RoleSwitch role={h.user.role} reload={reload} />}
+        {profile.get()?.demo && <RoleSwitch role={h.user.role} />}
         <a className="gear" href="#/settings" aria-label="Settings" title="Settings" aria-current={parts[0] === 'settings' ? 'page' : undefined}><GearIcon /></a>
       </header>
       <div id="main">{screen}</div>
