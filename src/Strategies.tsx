@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { api, useAsync, Switch, Toggle, type Area, type Home } from './ui';
+import { api, useAsync, Switch, type Area, type Home } from './ui';
 
 interface Picked {
   key: string; label: string; area: string; strategy: { title: string; how: string; why: string };
@@ -36,8 +36,8 @@ export function AreaPicker({ areas, picked, onChange }: { areas: Area[]; picked:
 /** One suggested strategy per thing the student picked, with the reason for it. */
 export function Suggestions({ reload, watch }: { reload: () => void; watch: string }) {
   const { data, reload: refresh } = useAsync<{ picked: Picked[]; min_group: number }>(() => api('/strategies'), [watch]);
-  const set = async (s: Picked, patch: { active?: boolean; helpful?: boolean }) => {
-    await api(`/strategies/${s.key}`, 'POST', { active: patch.active ?? s.active, helpful: patch.helpful ?? (s.helpful == null ? null : !!s.helpful) });
+  const set = async (s: Picked, active: boolean) => {
+    await api(`/strategies/${s.key}`, 'POST', { active, helpful: s.helpful == null ? null : !!s.helpful });
     refresh(); reload();
   };
   if (!data) return null;
@@ -45,22 +45,14 @@ export function Suggestions({ reload, watch }: { reload: () => void; watch: stri
   return (
     <div className="suggestions">
       {data.picked.map((s) => (
-        <div key={s.key} className={`suggestion ${s.active ? 'active' : ''}`}>
-          <p className="for">{s.label}</p>
-          <div className="between wrap">
-            <h3>{s.strategy.title}</h3>
-            <Toggle checked={s.active} onChange={(v) => set(s, { active: v })}>{s.active ? 'Using' : 'Use this'}</Toggle>
-          </div>
-          <p>{s.strategy.how}</p>
-          <p className="why"><strong>Why:</strong> {s.strategy.why}</p>
-          {s.stat && <p className="fine">Helped {s.stat.helped}% of {s.stat.tried} students who tried it.{s.stat.demo ? ' (Demo data.)' : ''}</p>}
-          {s.active && (
-            <p className="helpful">Helping?
-              <button className={s.helpful === 1 ? 'pick on' : 'pick'} onClick={() => set(s, { helpful: true })}>Yes</button>
-              <button className={s.helpful === 0 ? 'pick on' : 'pick'} onClick={() => set(s, { helpful: false })}>Not really</button>
-            </p>
-          )}
-        </div>
+        <label key={s.key} className={`suggestion ${s.active ? 'active' : ''}`}>
+          <input type="checkbox" checked={s.active} onChange={(e) => set(s, e.target.checked)} aria-label={`Use "${s.strategy.title}"`} />
+          <span className="sbody">
+            <strong>{s.strategy.title}</strong>
+            <span className="muted">{s.strategy.how}</span>
+          </span>
+          {s.stat && <span className="sstat">Helped {s.stat.helped}% of {s.stat.tried}{s.stat.demo ? ' · demo' : ''}</span>}
+        </label>
       ))}
     </div>
   );

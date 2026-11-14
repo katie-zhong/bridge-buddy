@@ -58,7 +58,6 @@ export function Community({ home, query }: { home: Home; query: URLSearchParams 
     <main className="page">
       <div className="between wrap">
         <div><p className="eyebrow">{c.code} · {c.title}</p><h1>Community</h1></div>
-        <span className="tag" title="Pulled from the course syllabus in Brightspace">From the Brightspace syllabus{c.demo ? ' · demo data' : ''}</span>
       </div>
 
       <div className="cols">
@@ -108,7 +107,6 @@ export function Community({ home, query }: { home: Home; query: URLSearchParams 
             </li>
           ))}
         </ul>
-        <p className="fine">Class questions about a lecture go in that lecture's Class tab, where classmates can answer too.</p>
       </section>
     </main>
   );

@@ -248,7 +248,6 @@ export function App() {
         <nav aria-label="Main">
           {(instructor || h.user.settings.onboarded) && nav.map(([to, label]) => <a key={to} href={`#${to}`} aria-current={path === to ? 'page' : undefined}>{label}</a>)}
         </nav>
-        {h.ai === 'offline' && <span className="tag" title="No Claude API key on the server. Norbu answers from built-in course content.">Offline tutor</span>}
         {profile.get()?.demo && <RoleSwitch role={h.user.role} reload={reload} />}
         <a className="gear" href="#/settings" aria-label="Settings" title="Settings" aria-current={parts[0] === 'settings' ? 'page' : undefined}><GearIcon /></a>
       </header>

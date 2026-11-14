@@ -344,9 +344,11 @@ a.btn.primary { color: var(--card); } a.btn.small { min-height: 36px; padding: .
 .areahead { width: 100%; display: flex; align-items: center; gap: .5rem; font-weight: 700; text-align: left; } .areahead > span:first-child { flex: 1; }
 .area .chips { padding: 0 .7rem .8rem; } .area .pick { text-align: left; border-radius: 14px; }
 .suggestions { display: grid; gap: .7rem; width: 100%; text-align: left; }
-.suggestion { border: 1.5px solid var(--line); border-radius: 14px; background: var(--card); padding: .8rem 1rem; } .suggestion.active { border-color: var(--moss); }
-.suggestion .for { font-size: .82rem; color: var(--muted); margin: 0 0 .2rem; } .suggestion h3 { margin: 0; } .suggestion p { margin: .3rem 0 0; }
-.suggestion .why { background: var(--amber-soft); border-radius: 8px; padding: .3rem .6rem; }
+.suggestion { position: relative; display: grid; grid-template-columns: auto 1fr; gap: .2rem .8rem; align-items: start; border-radius: 16px; background: var(--card); padding: .8rem 1rem 1.6rem; box-shadow: var(--shadow); cursor: pointer; font-weight: 400; }
+.suggestion.active { box-shadow: var(--shadow), inset 4px 0 0 var(--moss); }
+.suggestion input { width: 1.3rem; height: 1.3rem; min-height: 0; margin-top: .15rem; accent-color: var(--moss); }
+.suggestion .sbody { display: grid; gap: .1rem; } .suggestion .sbody .muted { font-size: .92rem; }
+.suggestion .sstat { position: absolute; right: 1rem; bottom: .45rem; font-size: .76rem; color: var(--muted); }
 
 /* the map */
 .maphead { margin-bottom: .8rem; } .maphead h1 { margin: 0; }
@@ -398,3 +400,5 @@ a.btn.primary { color: var(--card); } a.btn.small { min-height: 36px; padding: .
 .speedpop input { width: 100%; accent-color: var(--moss); }
 .speedpop .ticks { display: flex; justify-content: space-between; font-size: .75rem; color: var(--muted); margin-top: .1rem; } .speedpop .ticks .on { color: var(--moss); font-weight: 700; }
 @media (max-width: 860px) { .tlwrap { order: 5; flex-basis: 100%; max-width: none; } }
+.toolsbtn { text-decoration: none; display: inline-grid; place-items: center; vertical-align: middle; width: 28px; height: 24px; }
+.toolspop { display: grid; gap: .1rem; width: 270px; } .toolspop .switch { min-height: 40px; font-size: .92rem; color: var(--ink); }

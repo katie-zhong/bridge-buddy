@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { api, go, stamp, useAsync, Tutor, LevelDial, Modal, OfflineNote, ReadAloud, Recognition, Toggle, SPEEDS, type Home, type Lecture, type Level, type Mark, type Plank, type Post, type ReadWrite, type Segment, type Speed } from './ui';
+import { api, go, stamp, useAsync, Tutor, LevelDial, Modal, OfflineNote, ReadAloud, Recognition, Switch, Toggle, SPEEDS, type Home, type Lecture, type Level, type Mark, type Plank, type Post, type ReadWrite, type Segment, type Settings, type Speed } from './ui';
 import { ReadWritePanel } from './ReadWrite';
 import { PlankIcon, Troll, type PlankState } from './Troll';
 
@@ -65,6 +65,7 @@ export function LectureView({ id, home, startAt, reload, toast }: { id: string; 
   const prevLecture = at > 0 ? ordered[at - 1] : undefined;
   const nextLecture = at >= 0 && at < ordered.length - 1 ? ordered[at + 1] : undefined;
   const [word, setWord] = useState(0);
+  const [paused, setPaused] = useState(false);
   const [say, setSay] = useState(''); // Norbu's speech bubble in the side panel
   useEffect(() => { if (!say) return; const t = setTimeout(() => setSay(''), 6000); return () => clearTimeout(t); }, [say]);
   const chooseSpeed = (v: Speed) => { setSpeedPick(v); api('/me', 'PATCH', { settings: { speed: v } }).catch(() => { /* keeps working for this visit */ }); };
@@ -92,20 +93,20 @@ export function LectureView({ id, home, startAt, reload, toast }: { id: string; 
 
   // Demo replay: reveal the recorded lecture one passage at a time, as if it were live.
   useEffect(() => {
-    if (mode !== 'replay' || !data) return;
+    if (mode !== 'replay' || !data || paused) return;
     if (shown >= data.segments.length) { setMode('recorded'); toast('Lecture over. Your flags are waiting under "Ideas".'); setTab('planks'); return; }
     const t = setTimeout(() => setShown((n) => n + 1), shown === 0 ? 300 : REPLAY_MS / speed);
     return () => clearTimeout(t);
-  }, [mode, shown, data, speed]); // eslint-disable-line
+  }, [mode, shown, data, speed, paused]); // eslint-disable-line
 
   // Word highlight: step through the newest passage, finishing as the next one arrives.
+  useEffect(() => setWord(0), [shown]);
   useEffect(() => {
-    setWord(0);
-    if (mode !== 'replay' || !user.settings.wordHighlight || !shown || !data) return;
+    if (mode !== 'replay' || !user.settings.wordHighlight || !shown || !data || paused) return;
     const words = data.segments[shown - 1]?.text.split(/\s+/).length || 1;
     const t = setInterval(() => setWord((w) => Math.min(w + 1, words - 1)), REPLAY_MS / speed / words);
     return () => clearInterval(t);
-  }, [mode, shown, speed, user.settings.wordHighlight]); // eslint-disable-line
+  }, [mode, shown, speed, paused, user.settings.wordHighlight]); // eslint-disable-line
 
   useEffect(() => {
     if (!live || !segments.length) return;
@@ -218,6 +219,7 @@ export function LectureView({ id, home, startAt, reload, toast }: { id: string; 
             {live ? <span className="livedot">● {mode === 'replay' ? 'Live replay (demo)' : 'Listening'}</span> : `Transcript from ${data.lecture.source}`}
             {segments.length ? ` · ${stamp(segments[segments.length - 1].t_end)}` : ''}
             {speedOn && <> · <SpeedControl value={speedPick} onChange={chooseSpeed} /></>}
+            {data.lecture.live_demo ? <> · <TranscriptTools settings={user.settings} reload={reload} /></> : null}
           </p>
         </div>
         <div className="tlwrap">
@@ -227,13 +229,15 @@ export function LectureView({ id, home, startAt, reload, toast }: { id: string; 
         </div>
         <div className="lectactions">
           {data.lecture.live_demo && mode === 'recorded' ? (
-            <button className="primary playbtn" onClick={() => { setShown(0); setSelected(null); setMode('replay'); }} aria-label="Sit in on it live (replay)" title="Sit in on it live">
+            <button className="primary playbtn" onClick={() => { setShown(0); setSelected(null); setPaused(false); setMode('replay'); }} aria-label="Sit in on it live (replay)" title="Sit in on it live">
               <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden><path d="M6 3.5v13l11-6.5z" fill="currentColor" /></svg>
             </button>
           ) : null}
           {mode === 'replay' && (
-            <button className="ghost playbtn" onClick={() => setMode('recorded')} aria-label="Stop the replay" title="Stop the replay">
-              <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden><rect x="4.5" y="4.5" width="11" height="11" rx="2" fill="currentColor" /></svg>
+            <button className={`playbtn ${paused ? 'primary' : 'ghost'}`} onClick={() => setPaused(!paused)} aria-label={paused ? 'Resume the replay' : 'Pause the replay'} title={paused ? 'Resume' : 'Pause'}>
+              {paused
+                ? <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden><path d="M6 3.5v13l11-6.5z" fill="currentColor" /></svg>
+                : <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden><rect x="4" y="3.5" width="4.2" height="13" rx="1.5" fill="currentColor" /><rect x="11.8" y="3.5" width="4.2" height="13" rx="1.5" fill="currentColor" /></svg>}
             </button>
           )}
           {canRecord && mode === 'recorded' && <button className="primary" onClick={startLive}>● Start listening</button>}
@@ -493,6 +497,34 @@ function SpeedControl({ value, onChange }: { value: Speed; onChange: (v: Speed) 
             onChange={(e) => onChange(SPEEDS[Number(e.target.value)])} list="speed-steps" />
           <datalist id="speed-steps">{SPEEDS.map((v, k) => <option key={v} value={k} />)}</datalist>
           <span className="ticks" aria-hidden>{SPEEDS.map((v) => <span key={v} className={v === value ? 'on' : ''}>{v}×</span>)}</span>
+        </span>
+      )}
+    </span>
+  );
+}
+
+/** Transcript tools, set right here in the lecture (not in Settings): speed control and word highlight. */
+function TranscriptTools({ settings, reload }: { settings: Settings; reload: () => void }) {
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const key = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    const click = (e: MouseEvent) => !box.current?.contains(e.target as Node) && setOpen(false);
+    window.addEventListener('keydown', key);
+    window.addEventListener('mousedown', click);
+    return () => { window.removeEventListener('keydown', key); window.removeEventListener('mousedown', click); };
+  }, [open]);
+  const save = async (patch: Settings) => { await api('/me', 'PATCH', { settings: patch }); reload(); };
+  return (
+    <span className="speedctl" ref={box}>
+      <button className="speedbtn toolsbtn" aria-expanded={open} aria-label="Transcript tools" title="Transcript tools" onClick={() => setOpen(!open)}>
+        <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden><path d="M3 6h9M15 6h2M3 14h3M9 14h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /><circle cx="13.5" cy="6" r="2.2" fill="currentColor" /><circle cx="7.5" cy="14" r="2.2" fill="currentColor" /></svg>
+      </button>
+      {open && (
+        <span className="speedpop toolspop">
+          <Switch checked={settings.replaySpeed !== false} onChange={(v) => save({ replaySpeed: v })}>Speed control</Switch>
+          <Switch checked={!!settings.wordHighlight} onChange={(v) => save({ wordHighlight: v })}>Highlight the current word</Switch>
         </span>
       )}
     </span>

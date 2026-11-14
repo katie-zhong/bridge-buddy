@@ -54,12 +54,6 @@ export function SettingsPage({ home, section, reload, signOut }: { home: Home; s
             <button className="ghost" onClick={async () => { await save({ onboarded: false }); go('/'); }}>Show the welcome tour again</button>
           </section>
 
-          <section className="card stack">
-            <h2>Lecture transcript</h2>
-            <Toggle checked={s.replaySpeed !== false} onChange={(v) => save({ replaySpeed: v })}>Replay speed control (0.75× to 2×)</Toggle>
-            <Toggle checked={!!s.wordHighlight} onChange={(v) => save({ wordHighlight: v })}>Highlight the current word during a replay</Toggle>
-          </section>
-
           <section className="card stack" id="integrations">
             <h2>Connected tools</h2>
             <div className="integration">
