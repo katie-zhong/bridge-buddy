@@ -25,5 +25,11 @@ plain CSS in `styles.css` (CSS custom properties for the reading/accessibility s
   Respect the user's font, size, spacing, calm and focus settings (CSS variables, not hard-coded
   values); every control is keyboard-reachable with a visible label; no colour-only meaning;
   plain, short UI copy. Read-aloud and dictation must keep working where they exist.
+- **Visual language.** Monochrome and minimal: off-white `--paper`, ink type, 1px grey hairlines,
+  square corners, uppercase letter-spaced `--label` text for nav/buttons/section titles, serif
+  `--display` for page headlines only. Colour comes from the tokens in `styles.css`; never hard-code
+  hex in components. `--clay` (muted red) is reserved for errors, danger and "live". Plank states
+  are frosted glass (plain), grey glass (mended), dark glass + check (proven), dashed outline (gap):
+  always fill + outline + icon, never colour alone.
 - **Browser APIs** (`speechSynthesis`, `SpeechRecognition`, `localStorage`) are feature-detected
   and wrapped so the app still works without them.

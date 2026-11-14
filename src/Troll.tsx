@@ -54,47 +54,50 @@ export function Troll({ mood, size = 96 }: { mood?: Mood; size?: number }) {
 
 const WORDS = { plain: 'no gaps flagged', gap: 'gap to repair', mended: 'mended, recall check pending', proven: 'proven by delayed recall' };
 
-/** The course as a bridge to the next exam. One plank per idea taught so far. */
+/** The course as a bridge to the next exam. One plank per idea taught so far.
+ *  The scene is a line drawing (SVG); the planks are real buttons laid over it in frosted
+ *  glass, so the arch and railing show through them, blurred. State is shown by fill AND
+ *  outline style AND icon, never by colour alone. */
 export function Bridge({ planks, examLabel, examIn, mood }: { planks: Plank[]; examLabel: string; examIn: string; mood: Mood }) {
-  const x0 = 96, x1 = 724, gap = 4;
-  const w = planks.length ? (x1 - x0 - gap * (planks.length - 1)) / planks.length : 0;
+  const open = (p: Plank) => go(`/lecture/${p.lecture_id}?t=${p.t_start}`);
+  const posts = Array.from({ length: 23 }, (_, i) => 108 + i * 27.5);
   return (
-    <svg viewBox="0 0 820 300" className="bridge" role="group" aria-label={`Your bridge to ${examLabel}`}>
-      <defs>
-        <linearGradient id="water" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="var(--river)" /><stop offset="1" stopColor="var(--river-deep)" /></linearGradient>
-      </defs>
-      {/* river */}
-      <rect x="0" y="232" width="820" height="68" fill="url(#water)" />
-      <path className="ripple" d="M150 252 q14 -7 28 0 t28 0 M330 274 q14 -7 28 0 t28 0 M560 256 q14 -7 28 0 t28 0 M250 286 q10 -5 20 0 M640 282 q12 -6 24 0" fill="none" stroke="#fff" strokeOpacity=".45" strokeWidth="2.5" strokeLinecap="round" />
-      {/* banks */}
-      <path d="M0 150 C40 138 84 142 124 160 L136 300 L0 300 Z" fill="var(--bank)" />
-      <path d="M820 150 C780 138 736 142 696 160 L684 300 L820 300 Z" fill="var(--bank)" />
-      {/* troll on a rock under the arch */}
-      <ellipse cx="410" cy="262" rx="62" ry="13" fill="var(--stone-dark)" />
-      <g transform="translate(362 158) scale(.8)"><TrollArt mood={mood} /></g>
-      {/* stone arch */}
-      <path d="M70 126 H750 V238 H706 Q410 54 114 238 H70 Z" fill="var(--stone)" stroke="var(--stone-dark)" strokeWidth="3" strokeLinejoin="round" />
-      <path d="M130 150 h34 M190 142 h30 M590 142 h30 M650 150 h34 M92 178 h28 M700 178 h28 M96 208 h22 M704 208 h22 M300 136 h36 M480 136 h36" stroke="var(--stone-dark)" strokeOpacity=".5" strokeWidth="2.5" strokeLinecap="round" />
-      {/* deck */}
-      <rect x="70" y="122" width="680" height="7" rx="3" fill="var(--stone-dark)" />
-      {planks.map((p, i) => (
-        <g key={p.lecture_id + p.concept} className={`plank ${p.state}`} role="link" tabIndex={0}
-          aria-label={`${p.title}: ${WORDS[p.state]}`}
-          onClick={() => go(`/lecture/${p.lecture_id}?t=${p.t_start}`)}
-          onKeyDown={(e) => e.key === 'Enter' && go(`/lecture/${p.lecture_id}?t=${p.t_start}`)}>
-          <title>{`${p.title}: ${WORDS[p.state]}`}</title>
-          <rect x={x0 + i * (w + gap)} y="100" width={w} height="22" rx="4" />
-          {p.state === 'proven' && <path d={`M${x0 + i * (w + gap) + w / 2 - 6} 111 l4 5 l8 -9`} fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />}
-        </g>
-      ))}
-      {/* start post and exam flag */}
-      <path d="M50 150 V92" stroke="var(--ink)" strokeWidth="4" strokeLinecap="round" />
-      <rect x="18" y="74" width="66" height="24" rx="5" fill="var(--paper)" stroke="var(--ink)" strokeWidth="2.5" />
-      <text x="51" y="91" textAnchor="middle" className="sign">Week 1</text>
-      <path d="M770 150 V60" stroke="var(--ink)" strokeWidth="4" strokeLinecap="round" />
-      <path d="M770 62 H676 l12 15 l-12 15 H770 Z" fill="var(--clay)" stroke="var(--ink)" strokeWidth="2.5" strokeLinejoin="round" />
-      <text x="729" y="83" textAnchor="middle" className="sign light">{examLabel}</text>
-      <text x="760" y="176" textAnchor="middle" className="sign small">{examIn}</text>
-    </svg>
+    <div className="bridgewrap" role="group" aria-label={`Your bridge to ${examLabel}, ${examIn}`}>
+      <svg viewBox="0 0 820 300" className="bridge" aria-hidden="true">
+        {/* soft haze behind the deck so the glass has something to frost */}
+        <ellipse className="haze" cx="250" cy="120" rx="110" ry="14" />
+        <ellipse className="haze" cx="470" cy="116" rx="90" ry="12" />
+        <ellipse className="haze" cx="640" cy="122" rx="70" ry="12" />
+        {/* water: a few hairlines */}
+        <path className="ln soft ripple" d="M150 256 h70 M300 270 h120 M520 258 h90 M210 284 h60 M600 282 h70" />
+        <path className="ln soft" d="M0 238 H820" />
+        {/* banks */}
+        <path className="ln" d="M0 152 C40 140 84 144 124 162 L132 238" />
+        <path className="ln" d="M820 152 C780 140 736 144 696 162 L688 238" />
+        {/* arch */}
+        <path className="ln" d="M70 128 H750 M114 238 Q410 54 706 238" />
+        <path className="ln soft" d="M70 128 V238 M750 128 V238" />
+        {/* railing posts: they show through the glass, blurred */}
+        <path className="ln post" d={posts.map((x) => `M${x} 88 V136`).join(' ')} />
+        <path className="ln soft" d="M96 92 H724" />
+        {/* the troll under the arch */}
+        <g transform="translate(366 164) scale(.72)"><TrollArt mood={mood} /></g>
+        {/* start post and exam marker */}
+        <path className="ln" d="M50 152 V96" />
+        <text x="50" y="86" textAnchor="middle" className="sign">Week 1</text>
+        <path className="ln" d="M770 152 V58" />
+        <rect x="676" y="58" width="94" height="26" fill="var(--ink)" />
+        <text x="723" y="75" textAnchor="middle" className="sign light">{examLabel}</text>
+        <text x="723" y="48" textAnchor="middle" className="sign small">{examIn}</text>
+      </svg>
+      <div className="deck">
+        {planks.map((p) => (
+          <button key={p.lecture_id + p.concept} className={`plank ${p.state}`} title={`${p.title}: ${WORDS[p.state]}`}
+            aria-label={`${p.title}: ${WORDS[p.state]}`} onClick={() => open(p)}>
+            {p.state === 'proven' && <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5 6.5 12 13 4.5" fill="none" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
