@@ -28,7 +28,7 @@ The "bridge" metaphor: one plank per idea taught. States: plain → **gap** (fla
 
 | Area | Behaviour |
 |---|---|
-| Sign-in | First name + role (student / instructor). Stand-in for Microsoft Entra ID. Name and role are remembered in the browser and prefilled. **Demo mode** tickbox: name optional ("Guest"), skips the login screen on later visits, and silently signs back in as the same person if the server forgot the session (e.g. Vercel cold start). Signing out turns demo mode off. |
+| Sign-in | First name + role (student / instructor). Stand-in for Microsoft Entra ID. Name and role are remembered in the browser and prefilled. **Demo mode** tickbox: name optional ("Guest"), skips the login screen on later visits, and silently signs back in as the same person if the server forgot the session (e.g. Vercel cold start). A demo **student** starts with a bridge in progress (two missing planks, a week-later riddle due now, one coming, one proven, flashcards due) so Repair and Practice have something to show. In demo mode a **Student / Teacher** switch sits at the top right; each role keeps its own session in the browser. Signing out turns demo mode off. |
 | Welcome (first visit) | Students only, once (`settings.onboarded`). Step 1 asks what gets in the way (the same struggle chips as "What helps", skippable). Each struggle picked switches on its starter strategy (the one with the biggest week-later lift) and any setting it needs, unless recommendations are off or the student already chose for that struggle. Then a four-step tour of the loop (bridge → press F → mend → prove), ending in "Try it in a lecture" (opens the demo lecture) or "Go to my bridge". Can be replayed from Settings. |
 | Bridge (home) | A rope bridge whose deck is built from the planks themselves: one plank per idea, a flagged idea is a visible hole. A "Start here" card points to the demo lecture until the student has flagged something. Planks per idea, open gaps, due recalls, streak, flashcards due, unified deadline list. |
 | Lecture | Timestamped transcript; flag (F); ask about the current moment without typing context; questions/flags collapse into the margin; mended ideas fold into one line of notes; per-lecture notes; AI summary; generate flashcards; discussion posts (optionally anonymous). |
@@ -36,8 +36,8 @@ The "bridge" metaphor: one plank per idea taught. States: plain → **gap** (fla
 | Repair | Explanation dial, riddle, grading, note line + flashcard created on pass, recall scheduled. |
 | Practice | Week-later riddles; spaced flashcards (Leitner boxes 0/1/3/7/14 days); add/remove cards. |
 | What helps | A section of Settings (route `#/help` still opens it). Student picks what feels hard (never a diagnosis); strategies show week-later outcomes of peers who said the same, only for groups ≥ 5. Strategies that are on appear on the Bridge under "Strategies for you". Every strategy has a "?" that says, in two lines, why it was suggested and how to use it. |
-| Class view | Instructor: flags along the lecture timeline, results by idea, common questions. Groups only, never names. |
-| Settings | Opened from the gear icon at the top right. Typeface (Atkinson / Lexend / system), size, spacing, calm mode, focus view, explanation level, lecture transcript tools (replay speed, word highlight), What helps, daily reminder, data export, account deletion, opt out of class totals. |
+| Class view | Instructor dashboard. Summary tiles (students, how many share flags, flags shared, % mended, % right a week later); lectures with the share of sharing students who flagged and the most-flagged idea; strategy use (how many students switched each strategy on, nothing about who or why); per lecture: flags along the timeline, results by idea, class discussion. **Scope:** flags come only from students who opted in (`shareFlags`, off by default); nothing a student typed to Noor (questions, answers, notes) is shown, only counts; no names; every number covers ≥ 5 students. |
+| Settings | Opened from the gear icon at the top right. Typeface (Atkinson / Lexend / system), size, spacing, calm mode, focus view, explanation level, lecture transcript tools (replay speed, word highlight), What helps, daily reminder, data export, account deletion, share my flags with my instructor (opt-in), opt out of anonymous class totals. |
 | Look | Flat, painterly "indie game" illustration: watercolour edges and pigment grain, no dark outlines, soft shadows instead of borders. Planks are wood: bare (sound), patched with a nailed batten (mended), green-sealed with a tick (proven), or a dashed hole with "?" (gap). Rules live in `.claude/skills/noor-design/SKILL.md`. |
 | Speech | Read-aloud on explanations; "say it" dictation in answer boxes. |
 
@@ -47,14 +47,14 @@ The "bridge" metaphor: one plank per idea taught. States: plain → **gap** (fla
   no colour-only meaning, read-aloud/dictation. Grading ignores spelling and grammar.
 - **Privacy by default.** Per-user access checks on every query. Aggregates only for
   groups ≥ 5 (`MIN_GROUP`). Instructors never see names. Users can export or delete all
-  their data and opt out of class totals. No real student data until SSO exists.
+  their data and opt out of class totals. Flags reach the instructor only with opt-in. No real student data until SSO exists.
 - **Never diagnose.** The app asks what feels hard; it never infers or names a condition.
 - **Help learning, not cheating.** The tutor explains methods with different examples and
   does not complete graded work.
 - **Grounded tutor.** Answers cite transcript timestamps `[mm:ss]` and say when a question
   goes beyond the lecture.
 - **Works offline.** Without an API key (or when Claude fails) an offline tutor answers
-  from seeded content and the UI says so.
+  from seeded content and the answer says so (no global "offline" badge in the header).
 - **Honest demo data.** Seeded lectures, deadlines and the synthetic 84-student cohort are
   labelled as demo data wherever they appear.
 

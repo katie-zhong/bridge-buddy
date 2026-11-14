@@ -103,3 +103,49 @@ test('picking a struggle switches on its starter strategy once, and bad settings
   assert.equal((await call(t, '/me', 'PATCH', { settings: { speed: 9 } })).status, 400);
   assert.equal((await call(t, '/me', 'PATCH', { settings: { isAdmin: true } })).status, 400);
 });
+
+test('a demo student starts with planks to mend and practice to do', async () => {
+  const t = (await call(null, '/login', 'POST', { name: 'Guest', role: 'student', demo: true })).data.token;
+  const home = (await call(t, '/home')).data;
+  const states = home.planks.map((p) => p.state);
+  for (const s of ['gap', 'mended', 'proven']) assert.ok(states.includes(s), `has a ${s} plank`);
+  assert.equal(home.open.length, 2);
+  const practice = (await call(t, '/practice')).data;
+  assert.ok(practice.recalls.some((r) => r.due_at <= practice.now && r.question));
+  assert.ok(practice.cards.some((c) => c.due_at <= practice.now));
+  // A normal sign-in starts empty, and the login body is validated.
+  const plain = await login('Fresh');
+  assert.equal((await call(plain, '/home')).data.open.length, 0);
+  assert.equal((await call(null, '/login', 'POST', { name: '' })).status, 400);
+  assert.equal((await call(null, '/login', 'POST', { name: 'X', role: 'admin' })).status, 400);
+});
+
+test('instructor view counts flags only from students who opted in, and never shows what they typed', async () => {
+  const prof = await login('Dr. Lee', 'instructor');
+  const lecture = (await call(prof, '/lectures/econ101-l3')).data;
+  const seg = lecture.segments.at(-1);
+  const count = async () => (await call(prof, '/instructor/lectures/econ101-l3')).data.segments.find((s) => s.id === seg.id).students ?? 0;
+  const before = await count();
+
+  const kids = [];
+  for (let i = 0; i < 5; i++) {
+    const k = await login(`Kid ${i}`);
+    await call(k, '/marks', 'POST', { lecture_id: 'econ101-l3', segment_id: seg.id, kind: 'question', body: `secret question ${i}` });
+    kids.push(k);
+  }
+  assert.equal(await count(), before, 'not shared by default');
+  for (const k of kids) await call(k, '/me', 'PATCH', { settings: { shareFlags: true } });
+  assert.ok((await count()) >= before + 5, 'counted once shared');
+
+  const detail = JSON.stringify((await call(prof, '/instructor/lectures/econ101-l3')).data);
+  const overview = (await call(prof, '/instructor/overview')).data;
+  for (const text of [detail, JSON.stringify(overview)]) {
+    assert.ok(!text.includes('secret question'));
+    assert.ok(!text.includes('Kid 0'));
+  }
+  assert.ok(overview.sharing >= overview.min_group);
+  assert.ok(overview.lectures.length >= 2);
+  for (const s of overview.strategies) assert.ok(s.students === null || s.students >= overview.min_group);
+  assert.ok(!('struggle' in overview.strategies[0]));
+  assert.equal((await call(kids[0], '/instructor/overview')).status, 403);
+});

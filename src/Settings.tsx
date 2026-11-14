@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api, go, LevelDial, Toggle, type Home, type Settings } from './ui';
+import { api, go, LevelDial, Toggle, WhyTip, type Home, type Settings } from './ui';
 import { WhatHelps } from './Strategies';
 
 export function SettingsPage({ home, section, reload, signOut }: { home: Home; section?: string; reload: () => void; signOut: () => void }) {
@@ -73,7 +73,14 @@ export function SettingsPage({ home, section, reload, signOut }: { home: Home; s
 
       <section className="card stack">
         <h2>Your data</h2>
-        {student && <Toggle checked={s.shareAggregates !== false} onChange={(v) => save({ shareAggregates: v })}>Count my flags in anonymous class totals (instructors see groups of 5 or more, never names)</Toggle>}
+        {student && (
+          <>
+            <Toggle checked={!!s.shareFlags} onChange={(v) => save({ shareFlags: v })}>
+              Share my flags with my instructor <WhyTip label="What does my instructor see?"><strong>What:</strong> only where you flagged, counted with at least 4 others. <strong>Never:</strong> your name or what you typed.</WhyTip>
+            </Toggle>
+            <Toggle checked={s.shareAggregates !== false} onChange={(v) => save({ shareAggregates: v })}>Count me in anonymous class totals (which strategies help, groups of 5 or more)</Toggle>
+          </>
+        )}
         <p className="muted">Your notes, questions and what you find hard are visible only to you. Noor never records a diagnosis and does not track your location.</p>
         <div className="actions">
           <button className="ghost" onClick={exportData}>Download my data</button>

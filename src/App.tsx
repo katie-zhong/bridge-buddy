@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api, go, session, profile, signIn, DEMO_NAME, useAsync, when, stamp, type Home, type User } from './ui';
+import { api, go, session, profile, signIn, switchDemoRole, clearDemoTokens, DEMO_NAME, useAsync, when, stamp, type Home, type User } from './ui';
 import { Bridge, PlankIcon, Troll } from './Troll';
 import { Welcome } from './Welcome';
 import { LectureView, NewLecture } from './Lecture';
@@ -32,7 +32,7 @@ function Login({ onDone }: { onDone: () => void }) {
     if (!who) return;
     setBusy(true);
     try {
-      await signIn(who, role);
+      await signIn(who, role, demo);
       profile.set({ name: who, role, demo });
       go(role === 'instructor' ? '/teach' : '/');
       onDone();
@@ -69,7 +69,7 @@ function useDemoSignIn(authed: boolean, onDone: () => void) {
   const [pending, setPending] = useState(!!p?.demo);
   useEffect(() => {
     if (!p?.demo) return;
-    signIn(p.name, p.role)
+    signIn(p.name, p.role, true)
       .then(() => { if (p.role === 'instructor' && !location.hash) go('/teach'); onDone(); })
       .catch(() => setPending(false)); // server unreachable: fall back to the login screen
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -191,6 +191,26 @@ function GearIcon() {
   );
 }
 
+/** Demo mode only: flip between the student and the teacher view. */
+function RoleSwitch({ role }: { role: User['role'] }) {
+  const [busy, setBusy] = useState(false);
+  const pick = async (r: User['role']) => {
+    if (r === role || busy) return;
+    setBusy(true);
+    try { await switchDemoRole(r); } catch { setBusy(false); }
+  };
+  return (
+    <div className="roleswitch" role="radiogroup" aria-label="Demo: view as">
+      <span className="tag">Demo</span>
+      {(['student', 'instructor'] as const).map((r) => (
+        <button key={r} type="button" role="radio" aria-checked={role === r} className={role === r ? 'on' : ''} disabled={busy} onClick={() => pick(r)}>
+          {r === 'student' ? 'Student' : 'Teacher'}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function App() {
   const hash = useHash();
   const [authed, setAuthed] = useState(!!session.token);
@@ -238,6 +258,7 @@ export function App() {
   const signOut = () => {
     const p = profile.get();
     if (p) profile.set({ ...p, demo: false }); // keep the name and role for next time, but show the login screen
+    clearDemoTokens();
     session.token = null; go('/'); location.reload();
   };
 
@@ -258,7 +279,7 @@ export function App() {
         <nav aria-label="Main">
           {(instructor || h.user.settings.onboarded) && nav.map(([to, label]) => <a key={to} href={`#${to}`} aria-current={path === to ? 'page' : undefined}>{label}</a>)}
         </nav>
-        {h.ai === 'offline' && <span className="tag" title="No Claude API key on the server. Noor answers from built-in course content.">Offline tutor</span>}
+        {profile.get()?.demo && <RoleSwitch role={h.user.role} />}
         <a className="gear" href="#/settings" aria-label="Settings" title="Settings" aria-current={parts[0] === 'settings' ? 'page' : undefined}><GearIcon /></a>
       </header>
       <div id="main">{screen}</div>

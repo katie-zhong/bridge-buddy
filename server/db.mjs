@@ -1,6 +1,6 @@
 import { DatabaseSync } from 'node:sqlite';
 import { randomUUID } from 'node:crypto';
-import { COURSE, LECTURES, DEADLINES, STRATEGIES, STRUGGLES } from './content.mjs';
+import { COURSE, LECTURES, DEADLINES, STRATEGIES, STRUGGLES, CONCEPTS } from './content.mjs';
 
 export const DAY = 86400;
 export const now = () => Math.floor(Date.now() / 1000);
@@ -34,6 +34,7 @@ export function openDb(path = process.env.NORBU_DB || 'norbu.db') {
   db.exec('pragma journal_mode = wal;');
   db.exec(SCHEMA);
   if (!db.prepare('select 1 from courses').get()) seed(db);
+  shareCohortFlags(db);
   return db;
 }
 
@@ -98,6 +99,48 @@ function seedCohort(db, t) {
       insMark.run(mid, id, s.lecture_id, s.id, asked ? 'question' : 'flag', asked ? qs[Math.floor(r() * qs.length)] : null, repaired ? 'repaired' : 'open', repaired ? 1 + (r() < 0.35 ? 1 : 0) : 0, repaired ? (r() < 0.5 + lift ? 1 : 0) : null, made, repaired ? made + DAY : null);
       if (repaired) insRecall.run(uid(), id, mid, '', made + 8 * DAY, made + 8 * DAY, r() < 0.48 + lift ? 1 : 0);
     }
+  }
+  db.exec('commit');
+}
+
+// Sharing flags with the instructor is opt-in. About two thirds of the synthetic cohort opted in,
+// so the class view has something to show. Idempotent: only touches synthetic users with no settings
+// (also upgrades demo databases created before this setting existed).
+function shareCohortFlags(db) {
+  const users = db.prepare(`select id from users where synthetic=1 and (settings is null or settings='{}')`).all();
+  const set = db.prepare('update users set settings=? where id=?');
+  for (const u of users) set.run(JSON.stringify({ shareFlags: Number(u.id.replace('demo-', '')) % 3 !== 0 }), u.id);
+}
+
+// A demo student starts with a bridge in progress, so every screen has something to show:
+// two missing planks to mend, one patched plank whose week-later riddle is due now, one patched
+// plank still waiting for its check, one proven plank, and flashcards to review.
+export function seedDemoStudent(db, userId) {
+  const t = now();
+  const seg = (lecture, concept) => db.prepare('select * from segments where lecture_id=? and concept=? order by idx limit 1').get(lecture, concept);
+  const insMark = db.prepare('insert into marks(id,user_id,lecture_id,segment_id,kind,body,level,status,note_line,tries,first_try_pass,created_at,repaired_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?)');
+  const insRecall = db.prepare('insert into recalls(id,user_id,mark_id,question,due_at,done_at,passed) values(?,?,?,?,?,?,?)');
+  const insCard = db.prepare('insert into cards values(?,?,?,?,?,?,?,?)');
+  const plan = [
+    // [lecture, concept, kind, question, repaired days ago, recall: 'due' | 'later' | 'proven' | null]
+    ['econ101-l4', 'midpoint', 'flag', null, null, null],
+    ['econ101-l4', 'revenue', 'question', 'How can revenue go up if fewer people buy?', null, null],
+    ['econ101-l3', 'opportunity-cost', 'flag', null, 8, 'due'],
+    ['econ101-l4', 'demand', 'flag', null, 0, 'later'],
+    ['econ101-l3', 'ppf', 'flag', null, 9, 'proven'],
+  ];
+  db.exec('begin');
+  for (const [lecture, concept, kind, body, ago, recall] of plan) {
+    const s = seg(lecture, concept);
+    const c = CONCEPTS[concept];
+    if (!s || !c) continue;
+    const id = uid();
+    const repairedAt = ago == null ? null : t - ago * DAY;
+    insMark.run(id, userId, lecture, s.id, kind, body, 'example', repairedAt ? 'repaired' : 'open', repairedAt ? c.note : null, repairedAt ? 1 : 0, repairedAt ? 1 : null, (repairedAt || t) - 3600, repairedAt);
+    if (!repairedAt) continue;
+    const due = recall === 'due' ? t - DAY : repairedAt + 7 * DAY;
+    insRecall.run(uid(), userId, id, c.riddle, due, recall === 'proven' ? due : null, recall === 'proven' ? 1 : null);
+    insCard.run(uid(), userId, lecture, id, c.card[0], c.card[1], recall === 'later' ? 0 : 1, recall === 'later' ? t + DAY : t - 3600);
   }
   db.exec('commit');
 }

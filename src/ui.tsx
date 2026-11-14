@@ -6,7 +6,7 @@ export type Level = 'hint' | 'example' | 'walkthrough';
 export interface Settings {
   font?: 'atkinson' | 'lexend' | 'system'; size?: number; spacing?: number; calm?: boolean;
   level?: Level; focus?: boolean; checkpoints?: boolean; reminder?: string;
-  shareAggregates?: boolean; recs?: boolean; onboarded?: boolean; readAloud?: boolean; dictation?: boolean;
+  shareAggregates?: boolean; /** Opt-in: let the instructor's class view count my flags. */ shareFlags?: boolean; recs?: boolean; onboarded?: boolean; readAloud?: boolean; dictation?: boolean;
   /** Lecture transcript tools: show the replay speed control, and the chosen speed. */
   replaySpeed?: boolean; speed?: Speed;
   /** Lecture transcript tools: highlight the word being read during a replay. */
@@ -35,6 +35,21 @@ export interface Home {
   lectures: Lecture[]; planks: Plank[]; streak: { days: number; today: boolean }; open: Mark[]; recalls: Recall[];
   cards_due: number; deadlines: { id: string; course: string; title: string; due_at: number; source: string; kind: string }[];
   struggles: { key: string; label: string }[];
+}
+
+/** GET /api/instructor/overview. Counts are null when fewer than `min_group` students are behind them. */
+export interface InstructorOverview {
+  min_group: number; class_size: number; sharing: number | null; demo: boolean;
+  totals: { flags: number; mended: number | null; recall: number | null } | null;
+  lectures: { id: string; title: string; held_at: number; students: number | null; share: number | null; top: { title: string; share: number | null } | null }[];
+  strategies: { id: string; title: string; students: number | null; share: number | null }[];
+}
+/** GET /api/instructor/lectures/:id */
+export interface InstructorLecture {
+  lecture: { id: string; title: string; held_at: number }; class_size: number; min_group: number; demo: boolean;
+  concepts: { concept: string; title: string; t_start: number; suppressed?: boolean; students?: number; share?: number | null; repaired?: number | null; first_try?: number | null; recall?: number | null }[];
+  segments: { id: string; idx: number; t_start: number; text: string; concept: string; students: number | null }[];
+  posts: Post[];
 }
 
 // ---- api ---------------------------------------------------------------
@@ -76,11 +91,42 @@ async function request<T>(path: string, method: string, body: unknown): Promise<
 }
 
 /** Signs in with a name and role and stores the session token. Returns the new user. */
-export async function signIn(name: string, role: Profile['role']): Promise<User> {
-  const { res, data } = await request<{ token: string; user: User }>('/login', 'POST', { name, role });
+export async function signIn(name: string, role: Profile['role'], demo = false): Promise<User> {
+  const { res, data } = await request<{ token: string; user: User }>('/login', 'POST', { name, role, demo });
   if (!res.ok) throw new Error(data.error || 'Could not sign in');
   session.token = data.token;
   return data.user;
+}
+
+// Demo mode keeps one session per role in this browser, so switching between the student and
+// teacher view returns to the same person instead of starting over.
+const DemoTokens = z.object({ student: z.string().max(80).optional(), instructor: z.string().max(80).optional() });
+const demoTokens = {
+  get(): z.infer<typeof DemoTokens> {
+    try {
+      const parsed = DemoTokens.safeParse(JSON.parse(localStorage.getItem('norbu-demo-tokens') ?? '{}'));
+      return parsed.success ? parsed.data : {};
+    } catch { return {}; }
+  },
+  set(v: z.infer<typeof DemoTokens> | null) {
+    try { v ? localStorage.setItem('norbu-demo-tokens', JSON.stringify(v)) : localStorage.removeItem('norbu-demo-tokens'); } catch { /* private mode */ }
+  },
+};
+export const clearDemoTokens = () => demoTokens.set(null);
+
+/** Demo mode only: switch between the student and the teacher view, then reload. */
+export async function switchDemoRole(role: Profile['role']) {
+  const p = profile.get();
+  if (!p?.demo || p.role === role) return;
+  const tokens = demoTokens.get();
+  if (session.token) tokens[p.role] = session.token;
+  profile.set({ ...p, role });
+  const saved = tokens[role];
+  if (saved) session.token = saved; // if the server forgot it, api() signs in again as this role
+  else { await signIn(p.name, role, true); if (session.token) tokens[role] = session.token; }
+  demoTokens.set(tokens);
+  location.hash = role === 'instructor' ? '/teach' : '/';
+  location.reload();
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- existing call sites rely on the untyped default
@@ -91,7 +137,7 @@ export async function api<T = any>(path: string, method = 'GET', body?: unknown)
     if (p?.demo) {
       // Demo mode: the server lost our session. Sign in again as the same person and retry once.
       session.token = null;
-      await signIn(p.name, p.role);
+      await signIn(p.name, p.role, true);
       ({ res, data } = await request<T>(path, method, body));
     } else {
       session.token = null;
