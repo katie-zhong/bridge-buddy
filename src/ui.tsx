@@ -12,8 +12,9 @@ export interface Settings {
   /** Lecture transcript tools: highlight the word being read during a replay. */
   wordHighlight?: boolean;
 }
-export type Speed = 0.75 | 1 | 1.5 | 2;
-export const SPEEDS: Speed[] = [0.75, 1, 1.5, 2];
+export interface Struggle { key: string; group: 'lectures' | 'words' | 'numbers' | 'planning'; label: string }
+export type Speed = 0.75 | 1 | 1.25 | 1.5 | 1.75 | 2;
+export const SPEEDS: Speed[] = [0.75, 1, 1.25, 1.5, 1.75, 2];
 export type Role = 'instructor' | 'ta' | 'isa';
 export interface Course {
   code: string; title: string; source: string; demo: boolean; synced_at: number;
@@ -59,7 +60,7 @@ export interface Home {
   user: User; ai: 'claude' | 'offline'; course: { code: string; title: string; exam_label: string; exam_at: number };
   lectures: Lecture[]; planks: Plank[]; streak: { days: number; today: boolean }; open: Mark[]; recalls: Recall[];
   cards_due: number; deadlines: { id: string; course: string; title: string; due_at: number; source: string; kind: string }[];
-  struggles: { key: string; label: string }[];
+  struggles: Struggle[];
 }
 
 // ---- api ---------------------------------------------------------------

@@ -98,8 +98,8 @@ test('picking a struggle switches on its starter strategy once, and bad settings
   await call(t, '/me', 'PATCH', { struggles: ['reading', 'attention', 'numbers'] });
   assert.ok(!(await call(t, '/strategies')).data.strategies.find((s) => s.id === 'worked').active);
 
-  const ok = await call(t, '/me', 'PATCH', { settings: { replaySpeed: true, speed: 1.5, wordHighlight: true } });
-  assert.equal(ok.data.settings.speed, 1.5);
+  const ok = await call(t, '/me', 'PATCH', { settings: { replaySpeed: true, speed: 1.25, wordHighlight: true } });
+  assert.equal(ok.data.settings.speed, 1.25);
   assert.equal((await call(t, '/me', 'PATCH', { settings: { speed: 9 } })).status, 400);
   assert.equal((await call(t, '/me', 'PATCH', { settings: { isAdmin: true } })).status, 400);
 });

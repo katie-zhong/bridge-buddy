@@ -1,6 +1,36 @@
-import { api, go, useAsync, Switch, WhyTip, type Home, type Strategy } from './ui';
+import type { ReactNode } from 'react';
+import { api, go, useAsync, Switch, WhyTip, type Home, type Strategy, type Struggle } from './ui';
 
 type Struggles = Home['struggles'];
+
+// One small icon per group, so related struggles read as a set without headings.
+const GROUPS: { key: Struggle['group']; label: string; icon: ReactNode }[] = [
+  { key: 'lectures', label: 'Lectures', icon: <><rect x="3" y="4" width="14" height="10" rx="3" /><path d="M7 14l-1 4 4-4z" /></> },
+  { key: 'words', label: 'Reading and writing', icon: <><path d="M2 5c3-1 5-1 8 1v10c-3-2-5-2-8-1z" /><path d="M18 5c-3-1-5-1-8 1v10c3-2 5-2 8-1z" opacity=".7" /></> },
+  { key: 'numbers', label: 'Numbers', icon: <><rect x="4" y="2" width="12" height="16" rx="3" /><rect x="6.5" y="4.5" width="7" height="3.5" rx="1" fill="#fff" opacity=".8" /><circle cx="7.5" cy="11" r="1.1" fill="#fff" /><circle cx="12.5" cy="11" r="1.1" fill="#fff" /><circle cx="7.5" cy="14.5" r="1.1" fill="#fff" /><circle cx="12.5" cy="14.5" r="1.1" fill="#fff" /></> },
+  { key: 'planning', label: 'Planning', icon: <><rect x="3" y="4" width="14" height="13" rx="3" /><rect x="3" y="4" width="14" height="4" rx="2" opacity=".6" /><path d="M7 2v4M13 2v4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></> },
+];
+
+/** The struggle chips, visually grouped by kind (lectures, reading and writing, numbers, planning). */
+export function StrugglePicker({ struggles, picked, onToggle, center }: { struggles: Struggles; picked: string[]; onToggle: (key: string) => void; center?: boolean }) {
+  return (
+    <div className={`sgroups ${center ? 'center' : ''}`}>
+      {GROUPS.map((g) => {
+        const items = struggles.filter((s) => s.group === g.key);
+        if (!items.length) return null;
+        return (
+          <div key={g.key} className={`sgroup ${g.key}`} role="group" aria-label={g.label}>
+            <svg className="sgicon" viewBox="0 0 20 20" width="22" height="22" aria-hidden fill="currentColor">{g.icon}</svg>
+            {items.map((s) => {
+              const on = picked.includes(s.key);
+              return <button key={s.key} className={on ? 'pick on' : 'pick'} aria-pressed={on} onClick={() => onToggle(s.key)}>{s.label}</button>;
+            })}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 const useStrategies = () => useAsync<{ strategies: Strategy[]; min_group: number }>(() => api('/strategies'), []);
 
 /** The "?" text for a strategy: why Norbu surfaced it, and how to use it. Short on purpose. */
@@ -58,11 +88,7 @@ export function ProfileSection({ home, strategies, reload }: { home: Home; strat
       <div>
         <h3>What gets in the way?</h3>
         <p className="fine">Pick any. No diagnosis needed. Only you see this.</p>
-        <div className="chips">
-          {home.struggles.map((s) => (
-            <button key={s.key} className={mine.includes(s.key) ? 'pick on' : 'pick'} aria-pressed={mine.includes(s.key)} onClick={() => pick(s.key)}>{s.label}</button>
-          ))}
-        </div>
+        <StrugglePicker struggles={home.struggles} picked={mine} onToggle={pick} />
       </div>
       <fieldset className="checks" disabled={off}>
         <legend>My learning strategies</legend>

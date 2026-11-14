@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { api, go, type Home } from './ui';
 import { PlankIcon, Troll, type Mood } from './Troll';
+import { StrugglePicker } from './Strategies';
 
 const TOUR: { title: string; body: string; mood: Mood; plank: 'plain' | 'gap' | 'mended' | 'proven'; key?: string }[] = [
   { title: 'This is your bridge', body: 'Every idea in your course is one plank. Your bridge leads to the next exam, and it starts out whole.', mood: 'idle', plank: 'plain' },
@@ -34,12 +35,7 @@ export function Welcome({ home, reload }: { home: Home; reload: () => void }) {
         <Troll size={110} />
         <h1>Nice to meet you, {home.user.name}. I'm Norbu, your Bridgeway buddy.</h1>
         <p className="lede">First, what gets in the way when you study? Pick any that fit. You don't need a diagnosis or the right word for it, and you can change this later.</p>
-        <div className="chips center">
-          {home.struggles.map((s) => {
-            const on = picked.includes(s.key);
-            return <button key={s.key} className={on ? 'pick on' : 'pick'} aria-pressed={on} onClick={() => setPicked(on ? picked.filter((k) => k !== s.key) : [...picked, s.key])}>{s.label}</button>;
-          })}
-        </div>
+        <StrugglePicker struggles={home.struggles} picked={picked} center onToggle={(k) => setPicked(picked.includes(k) ? picked.filter((x) => x !== k) : [...picked, k])} />
         <p className="fine">Only you see this. For each one, I'll switch on the strategy that helped students who said the same. Change them any time in Settings.</p>
         <div className="actions center">
           <button className="primary" disabled={busy} onClick={saveStruggles}>{picked.length ? 'Continue' : 'None of these, continue'}</button>

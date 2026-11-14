@@ -59,7 +59,13 @@ export function LectureView({ id, home, startAt, reload, toast }: { id: string; 
   const [interim, setInterim] = useState('');
   // Transcript tools (Settings → Lecture transcript). Off means plain 1× replay with no word highlight.
   const [speedPick, setSpeedPick] = useState<Speed>(user.settings.speed || 1);
-  const speed: Speed = user.settings.replaySpeed ? speedPick : 1;
+  const speedOn = user.settings.replaySpeed !== false && !!data?.lecture.live_demo;
+  const speed: Speed = user.settings.replaySpeed !== false ? speedPick : 1;
+  // Lectures in the order they were held, for the previous / next buttons.
+  const ordered = [...home.lectures].sort((a, b) => a.held_at - b.held_at);
+  const at = ordered.findIndex((l) => l.id === id);
+  const prevLecture = at > 0 ? ordered[at - 1] : undefined;
+  const nextLecture = at >= 0 && at < ordered.length - 1 ? ordered[at + 1] : undefined;
   const [word, setWord] = useState(0);
   const [say, setSay] = useState(''); // Norbu's speech bubble in the side panel
   useEffect(() => { if (!say) return; const t = setTimeout(() => setSay(''), 6000); return () => clearTimeout(t); }, [say]);
@@ -208,21 +214,27 @@ export function LectureView({ id, home, startAt, reload, toast }: { id: string; 
         <div>
           <h1>{data.lecture.title}</h1>
           <p className="muted">
-            {live ? <span className="livedot">● {mode === 'replay' ? 'Live replay (demo, sped up)' : 'Listening'}</span> : `Transcript from ${data.lecture.source}`}
+            {live ? <span className="livedot">● {mode === 'replay' ? 'Live replay (demo)' : 'Listening'}</span> : `Transcript from ${data.lecture.source}`}
             {segments.length ? ` · ${stamp(segments[segments.length - 1].t_end)}` : ''}
+            {speedOn && <> · <SpeedControl value={speedPick} onChange={chooseSpeed} /></>}
           </p>
         </div>
-        <Timeline segments={data.segments} planks={lecturePlanks} now={target?.t_start ?? (live ? segments[segments.length - 1]?.t_start : undefined)} onTime={jump} />
-        {user.settings.replaySpeed && data.lecture.live_demo ? (
-          <div className="speed"><span id="speed-label">Speed</span>
-            <div className="dial" role="radiogroup" aria-labelledby="speed-label">
-              {SPEEDS.map((v) => <button key={v} role="radio" aria-checked={speedPick === v} className={speedPick === v ? 'on' : ''} onClick={() => chooseSpeed(v)}>{v}×</button>)}
-            </div>
-          </div>
-        ) : null}
+        <div className="tlwrap">
+          <LectureStep dir="prev" to={prevLecture} />
+          <Timeline segments={data.segments} planks={lecturePlanks} now={target?.t_start ?? (live ? segments[segments.length - 1]?.t_start : undefined)} onTime={jump} />
+          <LectureStep dir="next" to={nextLecture} />
+        </div>
         <div className="lectactions">
-          {data.lecture.live_demo && mode === 'recorded' ? <button className="primary" onClick={() => { setShown(0); setSelected(null); setMode('replay'); }}>▶ Sit in on it live</button> : null}
-          {mode === 'replay' && <button className="ghost" onClick={() => setMode('recorded')}>Skip to the recording</button>}
+          {data.lecture.live_demo && mode === 'recorded' ? (
+            <button className="primary playbtn" onClick={() => { setShown(0); setSelected(null); setMode('replay'); }} aria-label="Sit in on it live (replay)" title="Sit in on it live">
+              <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden><path d="M6 3.5v13l11-6.5z" fill="currentColor" /></svg>
+            </button>
+          ) : null}
+          {mode === 'replay' && (
+            <button className="ghost playbtn" onClick={() => setMode('recorded')} aria-label="Stop the replay" title="Stop the replay">
+              <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden><rect x="4.5" y="4.5" width="11" height="11" rx="2" fill="currentColor" /></svg>
+            </button>
+          )}
           {canRecord && mode === 'recorded' && <button className="primary" onClick={startLive}>● Start listening</button>}
           {mode === 'live' && <button className="primary" onClick={stopLive}>◼ Stop</button>}
         </div>
@@ -450,5 +462,44 @@ function Timeline({ segments, planks, now, onTime }: { segments: Segment[]; plan
       ))}
       {now != null && <span className="here" style={{ left: pct(now) }} aria-hidden />}
     </div>
+  );
+}
+
+function LectureStep({ dir, to }: { dir: 'prev' | 'next'; to?: Lecture }) {
+  const label = to ? `${dir === 'prev' ? 'Previous' : 'Next'} lecture: ${to.title}` : `No ${dir === 'prev' ? 'earlier' : 'later'} lecture`;
+  return (
+    <button className="ghost iconbtn step" disabled={!to} onClick={() => to && go(`/lecture/${to.id}`)} aria-label={label} title={label}>
+      <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden style={dir === 'next' ? { transform: 'scaleX(-1)' } : undefined}>
+        <rect x="3" y="4" width="2.6" height="12" rx="1.2" fill="currentColor" /><path d="M16 4v12L7 10z" fill="currentColor" />
+      </svg>
+    </button>
+  );
+}
+
+/** "1×" in the subheader; click it for a slider that snaps to the set speeds. */
+function SpeedControl({ value, onChange }: { value: Speed; onChange: (v: Speed) => void }) {
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const key = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    const click = (e: MouseEvent) => !box.current?.contains(e.target as Node) && setOpen(false);
+    window.addEventListener('keydown', key);
+    window.addEventListener('mousedown', click);
+    return () => { window.removeEventListener('keydown', key); window.removeEventListener('mousedown', click); };
+  }, [open]);
+  const i = Math.max(0, SPEEDS.indexOf(value));
+  return (
+    <span className="speedctl" ref={box}>
+      <button className="speedbtn" aria-expanded={open} aria-label={`Replay speed ${value}×. Change`} onClick={() => setOpen(!open)}>{value}×</button>
+      {open && (
+        <span className="speedpop">
+          <input type="range" min={0} max={SPEEDS.length - 1} step={1} value={i} autoFocus aria-label="Replay speed" aria-valuetext={`${value} times`}
+            onChange={(e) => onChange(SPEEDS[Number(e.target.value)])} list="speed-steps" />
+          <datalist id="speed-steps">{SPEEDS.map((v, k) => <option key={v} value={k} />)}</datalist>
+          <span className="ticks" aria-hidden>{SPEEDS.map((v) => <span key={v} className={v === value ? 'on' : ''}>{v}×</span>)}</span>
+        </span>
+      )}
+    </span>
   );
 }

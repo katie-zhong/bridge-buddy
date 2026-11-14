@@ -166,13 +166,14 @@ export const DEADLINES = [
 ];
 
 // Struggles are described by what the student experiences, never by diagnosis.
+// `group` lets the UI show related struggles together (lectures, reading and writing, numbers, planning).
 export const STRUGGLES = [
-  { key: 'pace', label: 'Lectures move too fast for me' },
-  { key: 'attention', label: 'I lose the thread part-way through' },
-  { key: 'reading', label: 'Readings take me much longer' },
-  { key: 'writing', label: 'Getting my thoughts onto the page is hard' },
-  { key: 'numbers', label: 'Calculations and formulas trip me up' },
-  { key: 'starting', label: 'Starting and planning work is hard' },
+  { key: 'pace', group: 'lectures', label: 'Lectures move too fast for me' },
+  { key: 'attention', group: 'lectures', label: 'I lose the thread part-way through' },
+  { key: 'reading', group: 'words', label: 'Readings take me much longer' },
+  { key: 'writing', group: 'words', label: 'Getting my thoughts onto the page is hard' },
+  { key: 'numbers', group: 'numbers', label: 'Calculations and formulas trip me up' },
+  { key: 'starting', group: 'planning', label: 'Starting and planning work is hard' },
 ];
 
 export const STRATEGIES = [
