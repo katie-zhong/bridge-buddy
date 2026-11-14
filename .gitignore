@@ -1,6 +1,42 @@
-node_modules
-dist
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+*.tsbuildinfo
+.vite/
+
+# Local data (SQLite store holds per-user data; never commit it)
 *.db
 *.db-wal
 *.db-shm
+*.sqlite
+*.sqlite3
+
+# Secrets and env (keep .env.example committable)
 .env
+.env.*
+!.env.example
+
+# Claude Code: personal settings stay local; shared .claude/settings.json is committed
+.claude/settings.local.json
+
+# Python artifacts (in case Python tooling or scripts are added later)
+.venv/
+__pycache__/
+*.py[cod]
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# Tooling, logs, OS/editor noise
+.eslintcache
+coverage/
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
