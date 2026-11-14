@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api, go, session, useAsync, when, stamp, type Home, type User } from './ui';
+import { api, go, session, profile, signIn, DEMO_NAME, useAsync, when, stamp, type Home, type User } from './ui';
 import { Bridge, Troll } from './Troll';
 import { LectureView, NewLecture } from './Lecture';
 import { Repair } from './Repair';
@@ -19,37 +19,60 @@ function useHash() {
 }
 
 function Login({ onDone }: { onDone: () => void }) {
-  const [name, setName] = useState('');
-  const [role, setRole] = useState<'student' | 'instructor'>('student');
+  const saved = profile.get();
+  const [name, setName] = useState(saved?.name === DEMO_NAME ? '' : saved?.name ?? '');
+  const [role, setRole] = useState<'student' | 'instructor'>(saved?.role ?? 'student');
+  const [demo, setDemo] = useState(saved?.demo ?? false);
   const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const who = name.trim() || (demo ? DEMO_NAME : '');
+    if (!who) return;
+    setBusy(true);
     try {
-      const out = await api('/login', 'POST', { name, role });
-      session.token = out.token;
+      await signIn(who, role);
+      profile.set({ name: who, role, demo });
       go(role === 'instructor' ? '/teach' : '/');
       onDone();
-    } catch (err: any) { setError(err.message); }
+    } catch (err) { setError(err instanceof Error ? err.message : 'Could not sign in'); setBusy(false); }
   };
   return (
     <main className="login">
       <Troll size={150} mood="happy" />
       <h1>NorBu</h1>
-      <p className="lede">The troll under the Northbridge. Flag what you miss in a lecture, keep listening, and mend the gap later.</p>
+      <p className="lede">Your Northbridge buddy. Flag what you miss in a lecture, keep listening, and mend the gap later.</p>
       <form onSubmit={submit} className="card">
-        <label>What should NorBu call you?
+        <label>What should NorBu call you?{demo && <span className="muted"> (optional in demo mode)</span>}
           <input value={name} onChange={(e) => setName(e.target.value)} autoFocus maxLength={40} placeholder="First name" />
         </label>
         <div className="dial" role="radiogroup" aria-label="I am a">
           <button type="button" role="radio" aria-checked={role === 'student'} className={role === 'student' ? 'on' : ''} onClick={() => setRole('student')}>I'm a student</button>
           <button type="button" role="radio" aria-checked={role === 'instructor'} className={role === 'instructor' ? 'on' : ''} onClick={() => setRole('instructor')}>I'm an instructor</button>
         </div>
+        <label className="toggle">
+          <input type="checkbox" checked={demo} onChange={(e) => setDemo(e.target.checked)} />
+          <span>Demo mode<small>Skip signing in. This browser remembers your name and role and opens NorBu straight away next time.</small></span>
+        </label>
         {error && <p className="error" role="alert">{error}</p>}
-        <button className="primary" disabled={!name.trim()}>Cross the bridge</button>
+        <button className="primary" disabled={busy || (!demo && !name.trim())}>{demo && !name.trim() ? 'Try the demo' : 'Cross the bridge'}</button>
         <p className="fine">No diagnosis, paperwork or waitlist needed. In the pilot you sign in with your Northbridge Microsoft account.</p>
       </form>
     </main>
   );
+}
+
+/** Demo mode: if there is no session but a demo profile is saved, sign in as that person. */
+function useDemoSignIn(authed: boolean, onDone: () => void) {
+  const p = authed ? null : profile.get();
+  const [pending, setPending] = useState(!!p?.demo);
+  useEffect(() => {
+    if (!p?.demo) return;
+    signIn(p.name, p.role)
+      .then(() => { if (p.role === 'instructor' && !location.hash) go('/teach'); onDone(); })
+      .catch(() => setPending(false)); // server unreachable: fall back to the login screen
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  return pending;
 }
 
 function applyPrefs(u?: User) {
@@ -148,6 +171,7 @@ export function App() {
   const hash = useHash();
   const [authed, setAuthed] = useState(!!session.token);
   const home = useAsync<Home | null>(() => (authed ? api<Home>('/home') : Promise.resolve(null)), [authed]);
+  const demoPending = useDemoSignIn(authed, () => setAuthed(true));
   const [toast, setToast] = useState('');
   const user = home.data?.user;
 
@@ -175,7 +199,7 @@ export function App() {
     return () => clearInterval(id);
   }, [user?.settings.reminder, home.data?.open.length]);
 
-  if (!authed) return <Login onDone={() => setAuthed(true)} />;
+  if (!authed) return demoPending ? <main className="page"><p className="muted">Opening the demo…</p></main> : <Login onDone={() => setAuthed(true)} />;
   if (home.error) return <main className="page"><p className="error">{home.error}</p></main>;
   if (!home.data) return <main className="page"><p className="muted">Loading…</p></main>;
 
@@ -187,7 +211,11 @@ export function App() {
     ? [['/teach', 'Class view'], ['/settings', 'Settings']]
     : [['/', 'Bridge'], ['/practice', 'Practice'], ['/help', 'What helps'], ['/settings', 'Settings']];
   const reload = () => home.reload();
-  const signOut = () => { session.token = null; go('/'); location.reload(); };
+  const signOut = () => {
+    const p = profile.get();
+    if (p) profile.set({ ...p, demo: false }); // keep the name and role for next time, but show the login screen
+    session.token = null; go('/'); location.reload();
+  };
 
   let screen;
   if (parts[0] === 'lecture') screen = <LectureView key={parts[1]} id={parts[1]} home={h} startAt={Number(new URLSearchParams(query).get('t')) || undefined} reload={reload} toast={setToast} />;

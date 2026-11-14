@@ -1,6 +1,6 @@
 # NorBu
 
-The troll under the Northbridge. A lecture companion for first-year students, built for
+Your Northbridge buddy. A lecture companion for first-year students, built for
 the ProdCon 2026 case "Learning Without Limits".
 
 **The loop:** flag the moment you get lost → keep listening → mend the gap later with an
@@ -20,6 +20,8 @@ npm run dev
 ```
 
 Open http://localhost:5173. Sign in with any first name, as a student or an instructor.
+Tick **Demo mode** to skip the login screen next time: the browser remembers your name and role
+and signs you straight in (and back in, if the server restarted and forgot you).
 
 For a single production process (serves the built app and the API on port 8787):
 

@@ -47,7 +47,9 @@ cold start. On Vercel, therefore:
 - The demo course and the synthetic class re-seed on every cold start (25 ms, so it is fast).
 - Sign-ins, flags, notes and progress are lost when the instance is recycled, and two
   concurrent instances do not share data. A user whose token disappears is sent back to the
-  sign-in screen (the app handles the 401 cleanly).
+  sign-in screen (the app handles the 401 cleanly). With **Demo mode** ticked at sign-in, the
+  browser instead signs them back in as the same name and role, so a demo link keeps working
+  (their earlier flags and progress are still gone).
 
 This is acceptable for a **demo / judging link**, not for a pilot. Before real use, move the
 store to a hosted database. Lowest-effort options:
