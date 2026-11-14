@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { api, go, type Home } from './ui';
-import { Troll, type Mood } from './Troll';
+import { PlankIcon, Troll, type Mood } from './Troll';
 
 const TOUR: { title: string; body: string; mood: Mood; plank: 'plain' | 'gap' | 'mended' | 'proven'; key?: string }[] = [
   { title: 'This is your bridge', body: 'Every idea in your course is one plank. Your bridge leads to the next exam, and it starts out whole.', mood: 'idle', plank: 'plain' },
@@ -40,7 +40,7 @@ export function Welcome({ home, reload }: { home: Home; reload: () => void }) {
             return <button key={s.key} className={on ? 'pick on' : 'pick'} aria-pressed={on} onClick={() => setPicked(on ? picked.filter((k) => k !== s.key) : [...picked, s.key])}>{s.label}</button>;
           })}
         </div>
-        <p className="fine">Only you see this. I use it to suggest study strategies that helped students who said the same.</p>
+        <p className="fine">Only you see this. For each one, I'll switch on the strategy that helped students who said the same. Change them any time in Settings.</p>
         <div className="actions center">
           <button className="primary" disabled={busy} onClick={saveStruggles}>{picked.length ? 'Continue' : 'None of these, continue'}</button>
         </div>
@@ -56,7 +56,7 @@ export function Welcome({ home, reload }: { home: Home; reload: () => void }) {
       <div className="tourart">
         <Troll size={120} mood={t.mood} />
         <div className="miniplanks" aria-hidden>
-          {[0, 1, 2, 3, 4].map((i) => <i key={i} className={`mini ${i === 2 ? t.plank : 'plain'}`}>{i === 2 && t.plank === 'gap' ? '?' : i === 2 && t.plank === 'proven' ? '✓' : ''}</i>)}
+          {[0, 1, 2, 3, 4].map((i) => <PlankIcon key={i} state={i === 2 ? t.plank : 'plain'} size={60} />)}
         </div>
       </div>
       <h1>{t.title} {t.key && <kbd>{t.key}</kbd>}</h1>

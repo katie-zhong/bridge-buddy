@@ -6,10 +6,23 @@ import { openDb, insertSegments, now, uid, DAY } from './db.mjs';
 import * as ai from './ai.mjs';
 import { CONCEPTS, STRATEGIES, STRUGGLES } from './content.mjs';
 import { parseTranscript } from './integrations.mjs';
+import { z } from 'zod';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const MIN_GROUP = 5; // never show an aggregate about fewer than this many students
 const BOXES = [0, 1, 3, 7, 14];
+
+// Everything a student may change about their own profile. Unknown keys are rejected.
+const MePatch = z.object({
+  settings: z.object({
+    font: z.enum(['atkinson', 'lexend', 'system']), size: z.number().min(0.8).max(1.6), spacing: z.number().min(1.2).max(2.4),
+    calm: z.boolean(), level: z.enum(['hint', 'example', 'walkthrough']), focus: z.boolean(), checkpoints: z.boolean(),
+    reminder: z.string().regex(/^(\d\d:\d\d)?$/), shareAggregates: z.boolean(), recs: z.boolean(), onboarded: z.boolean(),
+    readAloud: z.boolean(), dictation: z.boolean(),
+    replaySpeed: z.boolean(), speed: z.union([z.literal(0.75), z.literal(1), z.literal(1.5), z.literal(2)]), wordHighlight: z.boolean(),
+  }).partial().strict().optional(),
+  struggles: z.array(z.string().max(40)).max(20).optional(),
+}).strict();
 
 // Returns the (req, res) request listener. Used directly by the Vercel Function in api/,
 // and wrapped in an http.Server by createApp() for local dev, `npm start` and tests.
@@ -109,9 +122,33 @@ export function createHandler(db = openDb()) {
     };
   });
 
+  // Starter strategy for a struggle: the one with the biggest week-later lift.
+  const starter = (struggle) => STRATEGIES.filter((s) => s.struggle === struggle).sort((a, b) => b.lift - a.lift)[0];
+  const setSettings = (userId, patch) => {
+    const cur = one('select settings from users where id=?', userId);
+    run('update users set settings=? where id=?', JSON.stringify({ ...JSON.parse(cur.settings || '{}'), ...patch }), userId);
+  };
+
   on('PATCH', '/api/me', ({ user, body }) => {
-    if (body.settings) run('update users set settings=? where id=?', JSON.stringify({ ...JSON.parse(user.settings || '{}'), ...body.settings }), user.id);
-    if (Array.isArray(body.struggles)) run('update users set struggles=? where id=?', JSON.stringify(body.struggles.filter((k) => STRUGGLES.some((s) => s.key === k))), user.id);
+    const parsed = MePatch.safeParse(body);
+    if (!parsed.success) throw fail(400, 'Those settings are not valid');
+    const { settings, struggles } = parsed.data;
+    if (settings) setSettings(user.id, settings);
+    if (struggles) {
+      const before = JSON.parse(user.struggles || '[]');
+      const next = struggles.filter((k, i) => STRUGGLES.some((s) => s.key === k) && struggles.indexOf(k) === i);
+      run('update users set struggles=? where id=?', JSON.stringify(next), user.id);
+      // A newly picked struggle switches on its starter strategy (and the setting it needs), unless
+      // the student turned recommendations off or already made a choice for that struggle.
+      const recsOn = JSON.parse(one('select settings from users where id=?', user.id).settings || '{}').recs !== false;
+      for (const key of next.filter((k) => !before.includes(k))) {
+        const s = starter(key);
+        const decided = q('select strategy_id from strategy_use where user_id=?', user.id).some((u) => STRATEGIES.find((x) => x.id === u.strategy_id)?.struggle === key);
+        if (!recsOn || !s || decided) continue;
+        run('insert into strategy_use values(?,?,1,null)', user.id, s.id);
+        if (s.setting) setSettings(user.id, s.setting);
+      }
+    }
     return pub(one('select * from users where id=?', user.id));
   });
 

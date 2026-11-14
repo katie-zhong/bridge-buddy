@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { api, go, stamp, useAsync, Tutor, LevelDial, Modal, OfflineNote, ReadAloud, Recognition, Toggle, type Home, type Lecture, type Level, type Mark, type Post, type Segment } from './ui';
+import { api, go, stamp, useAsync, Tutor, LevelDial, Modal, OfflineNote, ReadAloud, Recognition, Toggle, SPEEDS, type Home, type Lecture, type Level, type Mark, type Post, type Segment, type Speed } from './ui';
+import { PlankIcon } from './Troll';
 
 interface Data { lecture: Lecture; segments: Segment[]; marks: Mark[]; notes: { body: string; summary: string | null }; posts: Post[] }
 type Mode = 'recorded' | 'replay' | 'live';
@@ -55,6 +56,11 @@ export function LectureView({ id, home, startAt, reload, toast }: { id: string; 
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState<'notes' | 'planks' | 'class'>('notes');
   const [interim, setInterim] = useState('');
+  // Transcript tools (Settings → Lecture transcript). Off means plain 1× replay with no word highlight.
+  const [speedPick, setSpeedPick] = useState<Speed>(user.settings.speed || 1);
+  const speed: Speed = user.settings.replaySpeed ? speedPick : 1;
+  const [word, setWord] = useState(0);
+  const chooseSpeed = (v: Speed) => { setSpeedPick(v); api('/me', 'PATCH', { settings: { speed: v } }).catch(() => { /* keeps working for this visit */ }); };
   const rec = useRef<any>(null);
   const liveStart = useRef(0);
   const pending = useRef({ text: '', t: 0 });
@@ -81,9 +87,18 @@ export function LectureView({ id, home, startAt, reload, toast }: { id: string; 
   useEffect(() => {
     if (mode !== 'replay' || !data) return;
     if (shown >= data.segments.length) { setMode('recorded'); toast('Lecture over. Your flags are waiting under "Planks".'); setTab('planks'); return; }
-    const t = setTimeout(() => setShown((n) => n + 1), shown === 0 ? 300 : REPLAY_MS);
+    const t = setTimeout(() => setShown((n) => n + 1), shown === 0 ? 300 : REPLAY_MS / speed);
     return () => clearTimeout(t);
-  }, [mode, shown, data]); // eslint-disable-line
+  }, [mode, shown, data, speed]); // eslint-disable-line
+
+  // Word highlight: step through the newest passage, finishing as the next one arrives.
+  useEffect(() => {
+    setWord(0);
+    if (mode !== 'replay' || !user.settings.wordHighlight || !shown || !data) return;
+    const words = data.segments[shown - 1]?.text.split(/\s+/).length || 1;
+    const t = setInterval(() => setWord((w) => Math.min(w + 1, words - 1)), REPLAY_MS / speed / words);
+    return () => clearInterval(t);
+  }, [mode, shown, speed, user.settings.wordHighlight]); // eslint-disable-line
 
   useEffect(() => {
     if (!live || !segments.length) return;
@@ -184,6 +199,13 @@ export function LectureView({ id, home, startAt, reload, toast }: { id: string; 
             {segments.length ? ` · ${stamp(segments[segments.length - 1].t_end)}` : ''}
           </p>
         </div>
+        {user.settings.replaySpeed && data.lecture.live_demo ? (
+          <div className="speed"><span id="speed-label">Speed</span>
+            <div className="dial" role="radiogroup" aria-labelledby="speed-label">
+              {SPEEDS.map((v) => <button key={v} role="radio" aria-checked={speedPick === v} className={speedPick === v ? 'on' : ''} onClick={() => chooseSpeed(v)}>{v}×</button>)}
+            </div>
+          </div>
+        ) : null}
         <div className="lectactions">
           {data.lecture.live_demo && mode === 'recorded' ? <button className="primary" onClick={() => { setShown(0); setSelected(null); setMode('replay'); }}>▶ Sit in on it live</button> : null}
           {mode === 'replay' && <button className="ghost" onClick={() => setMode('recorded')}>Skip to the recording</button>}
@@ -202,7 +224,11 @@ export function LectureView({ id, home, startAt, reload, toast }: { id: string; 
               <article key={s.id} id={`seg-${s.id}`} className={`seg ${current ? 'current' : ''} ${ms.some((m) => m.status === 'open' && m.kind !== 'comment') ? 'has-gap' : ''}`}>
                 <button className="time" onClick={() => setSelected(s.id === selected ? null : s.id)} aria-pressed={s.id === selected} title="Select this passage">{stamp(s.t_start)}</button>
                 <div>
-                  <p onClick={() => !live && setSelected(s.id)}>{s.text}</p>
+                  <p onClick={() => !live && setSelected(s.id)}>
+                    {mode === 'replay' && current && user.settings.wordHighlight
+                      ? s.text.split(/\s+/).map((w, k) => <span key={k} className={k === word ? 'word on' : 'word'}>{w}{' '}</span>)
+                      : s.text}
+                  </p>
                   {ms.map((m) => (
                     <MarkChip key={m.id} mark={m} open={expanded.has(m.id)} onToggle={() => toggle(m.id)} onTime={jump} onResolve={() => patchMark(m, 'resolved')} onDelete={() => removeMark(m)} />
                   ))}
@@ -228,7 +254,7 @@ export function LectureView({ id, home, startAt, reload, toast }: { id: string; 
                   const seg = data.segments.find((s) => s.id === m.segment_id)!;
                   return (
                     <li key={m.id}><button className="row" onClick={() => go(`/repair/${m.id}`)}>
-                      <span className="tag gap">{stamp(seg.t_start)}</span>
+                      <PlankIcon state="gap" /><span className="tag gap">{stamp(seg.t_start)}</span>
                       <span><strong>{m.body || seg.text.slice(0, 60) + '…'}</strong><small>Mend this plank</small></span><span className="chev">›</span>
                     </button></li>
                   );

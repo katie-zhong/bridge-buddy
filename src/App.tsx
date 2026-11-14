@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { api, go, session, profile, signIn, DEMO_NAME, useAsync, when, stamp, type Home, type User } from './ui';
-import { Bridge, Troll } from './Troll';
+import { Bridge, PlankIcon, Troll } from './Troll';
 import { Welcome } from './Welcome';
 import { LectureView, NewLecture } from './Lecture';
 import { Repair } from './Repair';
 import { Practice } from './Practice';
-import { Strategies } from './Strategies';
+import { ForYou } from './Strategies';
 import { Instructor } from './Instructor';
 import { SettingsPage } from './Settings';
 
@@ -113,10 +113,10 @@ function Today({ home }: { home: Home }) {
         </div>
         <Bridge planks={planks} examLabel={course.exam_label} examIn={when(course.exam_at)} mood={mood} />
         <ul className="legend">
-          <li><i className="sw gap" />{count('gap')} to repair</li>
-          <li><i className="sw mended" />{count('mended')} mended</li>
-          <li><i className="sw proven" />{count('proven')} proven a week later</li>
-          <li><i className="sw plain" />{count('plain')} no gaps flagged</li>
+          <li><PlankIcon state="gap" /><b>{count('gap')}</b> missing</li>
+          <li><PlankIcon state="mended" /><b>{count('mended')}</b> patched</li>
+          <li><PlankIcon state="proven" /><b>{count('proven')}</b> proven</li>
+          <li><PlankIcon state="plain" /><b>{count('plain')}</b> sound</li>
         </ul>
       </section>
 
@@ -130,6 +130,8 @@ function Today({ home }: { home: Home }) {
           </div>
         </section>
       )}
+
+      <ForYou home={home} />
 
       <div className="cols">
         <section className="card">
@@ -181,6 +183,14 @@ function Today({ home }: { home: Home }) {
   );
 }
 
+function GearIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden>
+      <path fill="currentColor" fillRule="evenodd" d="M10.3 2h3.4l.5 2.6c.6.2 1.2.5 1.7.9l2.5-.9 1.7 2.9-2 1.8c.1.6.1 1.2 0 1.8l2 1.8-1.7 2.9-2.5-.9c-.5.4-1.1.7-1.7.9l-.5 2.6h-3.4l-.5-2.6c-.6-.2-1.2-.5-1.7-.9l-2.5.9-1.7-2.9 2-1.8a5.6 5.6 0 0 1 0-1.8l-2-1.8 1.7-2.9 2.5.9c.5-.4 1.1-.7 1.7-.9zM12 8.6a3.4 3.4 0 1 0 0 6.8 3.4 3.4 0 0 0 0-6.8z" transform="translate(0 1)" />
+    </svg>
+  );
+}
+
 export function App() {
   const hash = useHash();
   const [authed, setAuthed] = useState(!!session.token);
@@ -222,8 +232,8 @@ export function App() {
   const parts = path.split('/').filter(Boolean);
   const instructor = h.user.role === 'instructor';
   const nav = instructor
-    ? [['/teach', 'Class view'], ['/settings', 'Settings']]
-    : [['/', 'Bridge'], ['/practice', 'Practice'], ['/help', 'What helps'], ['/settings', 'Settings']];
+    ? [['/teach', 'Class view']]
+    : [['/', 'Bridge'], ['/practice', 'Practice']];
   const reload = () => home.reload();
   const signOut = () => {
     const p = profile.get();
@@ -236,8 +246,7 @@ export function App() {
   else if (parts[0] === 'lecture') screen = <LectureView key={parts[1]} id={parts[1]} home={h} startAt={Number(new URLSearchParams(query).get('t')) || undefined} reload={reload} toast={setToast} />;
   else if (parts[0] === 'repair') screen = <><Today home={h} /><Repair id={parts[1]} user={h.user} onClose={() => { reload(); history.length > 1 ? history.back() : go('/'); }} /></>;
   else if (parts[0] === 'practice') screen = <Practice reload={reload} />;
-  else if (parts[0] === 'help') screen = <Strategies home={h} reload={reload} />;
-  else if (parts[0] === 'settings') screen = <SettingsPage user={h.user} reload={reload} signOut={signOut} />;
+  else if (parts[0] === 'settings' || parts[0] === 'help') screen = <SettingsPage home={h} section={parts[0] === 'help' ? 'help' : parts[1]} reload={reload} signOut={signOut} />;
   else if (parts[0] === 'teach' || instructor) screen = <Instructor home={h} />;
   else screen = <Today home={h} />;
 
@@ -250,6 +259,7 @@ export function App() {
           {(instructor || h.user.settings.onboarded) && nav.map(([to, label]) => <a key={to} href={`#${to}`} aria-current={path === to ? 'page' : undefined}>{label}</a>)}
         </nav>
         {h.ai === 'offline' && <span className="tag" title="No Claude API key on the server. Noor answers from built-in course content.">Offline tutor</span>}
+        <a className="gear" href="#/settings" aria-label="Settings" title="Settings" aria-current={parts[0] === 'settings' ? 'page' : undefined}><GearIcon /></a>
       </header>
       <div id="main">{screen}</div>
       {toast && <div className="toast" role="status">{toast}</div>}
