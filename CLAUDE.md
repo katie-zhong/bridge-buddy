@@ -1,6 +1,6 @@
-# NorBu: repository guide
+# Noor: repository guide
 
-NorBu is a lecture companion for first-year students (ProdCon 2026 case "Learning Without
+Noor is a lecture companion for first-year students (ProdCon 2026 case "Learning Without
 Limits"). **`docs/SPEC.md` is the source of truth** for what the product does and why.
 `README.md` is the user-facing run guide.
 

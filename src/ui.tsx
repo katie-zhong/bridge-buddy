@@ -6,7 +6,7 @@ export type Level = 'hint' | 'example' | 'walkthrough';
 export interface Settings {
   font?: 'atkinson' | 'lexend' | 'system'; size?: number; spacing?: number; calm?: boolean;
   level?: Level; focus?: boolean; checkpoints?: boolean; reminder?: string;
-  shareAggregates?: boolean; recs?: boolean;
+  shareAggregates?: boolean; recs?: boolean; onboarded?: boolean;
 }
 export interface User { id: string; name: string; role: 'student' | 'instructor'; settings: Settings; struggles: string[] }
 export interface Segment { id: string; idx: number; t_start: number; t_end: number; text: string; concept: string }
@@ -33,7 +33,7 @@ export const session = {
   set token(v: string | null) { try { v ? localStorage.setItem('norbu-token', v) : localStorage.removeItem('norbu-token'); } catch { /* private mode */ } },
 };
 
-// The name and role someone signed in with, kept in this browser. With `demo` on, NorBu signs
+// The name and role someone signed in with, kept in this browser. With `demo` on, Noor signs
 // them in automatically (no login screen), and silently signs them in again if the server has
 // forgotten them (e.g. a Vercel cold start wiped the demo database).
 const Profile = z.object({

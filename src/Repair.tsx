@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { api, go, stamp, useAsync, AnswerBox, LevelDial, Modal, OfflineNote, ReadAloud, Tutor, type Level, type Mark, type User } from './ui';
 import { Troll } from './Troll';
 
-/** Mend one plank: see the source, get an explanation at the level you choose, then answer NorBu's riddle. */
+/** Mend one plank: see the source, get an explanation at the level you choose, then answer Noor's riddle. */
 export function Repair({ id, user, onClose }: { id: string; user: User; onClose: () => void }) {
   const mark = useAsync<Mark>(() => api(`/marks/${id}`), [id]);
   const [level, setLevel] = useState<Level>(user.settings.level || 'example');
@@ -55,10 +55,10 @@ export function Repair({ id, user, onClose }: { id: string; user: User; onClose:
             <>
               <section>
                 <div className="between wrap">
-                  <p className="step">2 · NorBu explains</p>
+                  <p className="step">2 · Noor explains</p>
                   <LevelDial value={level} onChange={(l) => { setLevel(l); load(l); }} />
                 </div>
-                {busy === 'explain' && <p className="muted">NorBu is thinking…</p>}
+                {busy === 'explain' && <p className="muted">Noor is thinking…</p>}
                 {explain && busy !== 'explain' && (
                   <>
                     <Tutor text={explain.text} />

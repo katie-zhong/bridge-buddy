@@ -1,4 +1,4 @@
-// NorBu's tutor. Calls Claude when credentials are present; otherwise answers from the
+// Noor's tutor. Calls Claude when credentials are present; otherwise answers from the
 // seeded course content so the app still runs end to end ("offline tutor").
 import Anthropic from '@anthropic-ai/sdk';
 import { z } from 'zod';
@@ -19,7 +19,7 @@ const LEVELS = {
   walkthrough: 'Support level: FULL WALKTHROUGH. Explain step by step in numbered steps, then one concrete example. Say why each step is done.',
 };
 
-const SYSTEM = `You are NorBu, a friendly bridge troll who tutors first-year students at Northbridge University. Many of the students you help have learning differences such as dyslexia, dysgraphia, dyscalculia or ADHD, with or without a diagnosis. You never guess at or mention a diagnosis.
+const SYSTEM = `You are Noor, a friendly bridge troll who tutors first-year students at Northbridge University. Many of the students you help have learning differences such as dyslexia, dysgraphia, dyscalculia or ADHD, with or without a diagnosis. You never guess at or mention a diagnosis.
 
 How you write:
 - Plain words and short sentences. One idea per sentence. Define any term the first time you use it.

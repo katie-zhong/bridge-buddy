@@ -83,7 +83,7 @@ export function Practice({ reload }: { reload: () => void }) {
   return (
     <main className="page narrow">
       <h1>Practice</h1>
-      <p className="lede">A plank is only proven when you still know it a week later. That is what NorBu measures, not how often you open the app.</p>
+      <p className="lede">A plank is only proven when you still know it a week later. That is what Noor measures, not how often you open the app.</p>
       <section>
         <h2>Week-later riddles <span className="muted">{due.length} due · {later.length} coming · {proven} proven</span></h2>
         {!data.recalls.length && <p className="muted">Nothing scheduled yet. Mend a plank and its riddle comes back here after 7 days.</p>}

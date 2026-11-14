@@ -437,5 +437,5 @@ export const createApp = (db) => http.createServer(createHandler(db));
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const port = Number(process.env.PORT || 8787);
-  createApp().listen(port, () => console.log(`NorBu server on http://localhost:${port}  (tutor: ${ai.aiMode()})`));
+  createApp().listen(port, () => console.log(`Noor server on http://localhost:${port}  (tutor: ${ai.aiMode()})`));
 }

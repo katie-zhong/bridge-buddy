@@ -19,7 +19,7 @@ export function Strategies({ home, reload }: { home: Home; reload: () => void })
   return (
     <main className="page narrow">
       <h1>What helps</h1>
-      <p className="lede">Tell NorBu what feels hard. You don't need a diagnosis or the right word for it, and you can change this any time.</p>
+      <p className="lede">Tell Noor what feels hard. You don't need a diagnosis or the right word for it, and you can change this any time.</p>
       <section className="card">
         <h2>Right now, what gets in the way?</h2>
         <div className="chips">
@@ -31,7 +31,7 @@ export function Strategies({ home, reload }: { home: Home; reload: () => void })
 
       {off ? <p className="muted">Recommendations are switched off. <button className="link" onClick={() => go('/settings')}>Turn them on in Settings.</button></p> : (
         <>
-          {!mine.length && <p className="muted">Pick one or more above and NorBu will suggest things that worked for other students who said the same.</p>}
+          {!mine.length && <p className="muted">Pick one or more above and Noor will suggest things that worked for other students who said the same.</p>}
           {shown.map((s) => {
             const clear = s.stat && s.stat.with - s.stat.without >= 5;
             return (
@@ -51,7 +51,7 @@ export function Strategies({ home, reload }: { home: Home; reload: () => void })
                       <p>Students who said the same thing as you and used this got <strong>{s.stat.with}%</strong> of their week-later riddles right, against <strong>{s.stat.without}%</strong> for those who didn't. Based on {s.stat.used} students.</p>
                     </div>
                   ) : <p className="muted">No clear difference in week-later results for this one so far ({s.stat.used} students tried it). It may still suit you.</p>
-                ) : <p className="muted">Not enough students have tried this yet to show results (NorBu never shows numbers for fewer than {data!.min_group}).</p>}
+                ) : <p className="muted">Not enough students have tried this yet to show results (Noor never shows numbers for fewer than {data!.min_group}).</p>}
                 {s.stat?.demo && <p className="fine">Demo data: these figures come from a generated sample class, not real students.</p>}
                 {s.active && (
                   <p className="helpful">Is it helping?
@@ -60,7 +60,7 @@ export function Strategies({ home, reload }: { home: Home; reload: () => void })
                   </p>
                 )}
                 <details><summary>Why am I seeing this?</summary>
-                  <p className="fine">Because you chose "{home.struggles.find((x) => x.key === s.struggle)?.label}". NorBu compares anonymous, grouped results only. Nobody sees what you picked, and nothing here is a diagnosis. If things feel bigger than study strategies, Accessibility Services can talk through formal accommodations.</p>
+                  <p className="fine">Because you chose "{home.struggles.find((x) => x.key === s.struggle)?.label}". Noor compares anonymous, grouped results only. Nobody sees what you picked, and nothing here is a diagnosis. If things feel bigger than study strategies, Accessibility Services can talk through formal accommodations.</p>
                 </details>
               </section>
             );
