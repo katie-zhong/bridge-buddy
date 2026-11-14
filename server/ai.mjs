@@ -132,6 +132,22 @@ export function grade({ lectureTitle, segs, seg, question, answer }) {
   );
 }
 
+const ProblemGrade = z.object({ passed: z.boolean(), feedback: z.string() });
+const significant = (text) => text.toLowerCase().match(/[a-z]{4,}|\d+/g) || [];
+/** Grades a student's answer to a practice problem set by the instructor (or generated for a personal lecture). */
+export function gradeProblem({ lectureTitle, segs, question, modelAnswer, keywords, answer }) {
+  return withFallback(
+    () => structured(`Lecture: ${lectureTitle}\n\nTranscript:\n${transcript(segs)}\n\nPractice problem set by the instructor: ${question}\nThe instructor's model answer: ${modelAnswer || '(none given; judge from the lecture)'}\nStudent's answer: ${answer}\n\nGrade for understanding only. Ignore spelling, grammar and layout slips: many of these students have dyslexia or dysgraphia. A short correct answer passes; for a calculation the final value must be right.\n- passed: true if the core idea or result is right.\n- feedback: two short sentences spoken to the student. If passed, confirm what they got right. If not, say what is missing and give a nudge, without giving the answer.`, ProblemGrade),
+    () => {
+      const a = answer.toLowerCase();
+      const keys = keywords?.length ? keywords : null;
+      const overlap = significant(modelAnswer || '').filter((w) => a.includes(w)).length;
+      const passed = keys ? keys.some((k) => a.includes(String(k).toLowerCase())) : overlap >= 2;
+      return { passed, feedback: passed ? 'Yes, that is right. (Checked by the offline tutor, which looks for key terms.)' : 'Not quite yet. Look at the passage again and have another go.' };
+    },
+  );
+}
+
 const Cards = z.object({ cards: z.array(z.object({ front: z.string(), back: z.string() })) });
 export function flashcards({ lectureTitle, segs }) {
   return withFallback(

@@ -18,7 +18,7 @@ server/        Node HTTP API (plain node:http, no framework), ES modules (.mjs)
   *.test.mjs     node:test integration tests (in-memory DB)
 src/           React 18 SPA built with Vite, strict TypeScript
   ui.tsx         shared API types, the `api()` client, hooks, small components
-  <Screen>.tsx   one file per screen (Lecture, Repair, Practice, Strategies, Instructor, Settings)
+  <Screen>.tsx   one file per screen (Map, Lecture, Repair, Renovate, Welcome, Strategies, Instructor, Settings)
 api/norbu.mjs    Vercel Function entry: wraps createHandler() from server/index.mjs
 scripts/dev.mjs  runs API (:8787) + Vite (:5173, proxies /api) together
 vercel.json      Vercel build, /api rewrite, headers (see docs/DEPLOY.md)

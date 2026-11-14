@@ -5,40 +5,35 @@ interface Data { lecture: Lecture; segments: Segment[]; marks: Mark[]; notes: { 
 type Mode = 'recorded' | 'replay' | 'live';
 const REPLAY_MS = 3800;
 
-export function NewLecture() {
-  const [open, setOpen] = useState(false);
+/** Add a lecture (a new plank) to one course: record it live or bring a transcript. */
+export function NewLecture({ course, onClose }: { course: { id: string; code: string }; onClose: () => void }) {
   const [title, setTitle] = useState('');
   const [transcript, setTranscript] = useState('');
   const [error, setError] = useState('');
   const create = async (withTranscript: boolean) => {
     try {
-      const out = await api('/lectures', 'POST', { title, transcript: withTranscript ? transcript : undefined });
-      setOpen(false);
+      const out = await api<{ id: string }>('/lectures', 'POST', { title, course_id: course.id, transcript: withTranscript ? transcript : undefined });
+      onClose();
       go(`/lecture/${out.id}`);
-    } catch (e: any) { setError(e.message); }
+    } catch (e) { setError(e instanceof Error ? e.message : 'Could not add the lecture'); }
   };
   return (
-    <>
-      <button className="ghost" onClick={() => setOpen(true)}>+ Add a lecture</button>
-      {open && (
-        <Modal title="Add a lecture" onClose={() => setOpen(false)}>
-          <label>Title<input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. PSYC 100, Lecture 7" /></label>
-          <div className="choice">
-            <h3>Record it live</h3>
-            <p className="muted">Noor listens through your microphone and writes the transcript as the lecture happens. {Recognition ? '' : 'Your browser does not support live transcription; Chrome or Edge do.'}</p>
-            <button className="primary" disabled={!Recognition} onClick={() => create(false)}>Start a live lecture</button>
-          </div>
-          <div className="choice">
-            <h3>Bring a transcript</h3>
-            <p className="muted">Paste text, or choose a caption file exported from Panopto (.vtt or .srt).</p>
-            <input type="file" accept=".vtt,.srt,.txt" onChange={async (e) => { const f = e.target.files?.[0]; if (f) { setTranscript(await f.text()); if (!title) setTitle(f.name.replace(/\.\w+$/, '')); } }} />
-            <textarea rows={4} value={transcript} onChange={(e) => setTranscript(e.target.value)} placeholder="Paste the transcript here" />
-            <button className="primary" disabled={!transcript.trim()} onClick={() => create(true)}>Add transcript</button>
-          </div>
-          {error && <p className="error" role="alert">{error}</p>}
-        </Modal>
-      )}
-    </>
+    <Modal title={`Add a plank to ${course.code}`} onClose={onClose}>
+      <p className="muted">Recorded lectures arrive from Panopto by themselves. Add one here if yours is missing.</p>
+      <label>Title<input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Tutorial 3" /></label>
+      <div className="choice">
+        <h3>Record it live</h3>
+        {!Recognition && <p className="muted">Your browser does not support live transcription. Chrome and Edge do.</p>}
+        <button className="primary" disabled={!Recognition} onClick={() => create(false)}>Start a live lecture</button>
+      </div>
+      <div className="choice">
+        <h3>Bring a transcript</h3>
+        <input type="file" accept=".vtt,.srt,.txt" aria-label="Caption file (.vtt, .srt or .txt)" onChange={async (e) => { const f = e.target.files?.[0]; if (f) { setTranscript(await f.text()); if (!title) setTitle(f.name.replace(/\.\w+$/, '')); } }} />
+        <textarea rows={4} value={transcript} onChange={(e) => setTranscript(e.target.value)} placeholder="Or paste the transcript here" />
+        <button className="primary" disabled={!transcript.trim()} onClick={() => create(true)}>Add transcript</button>
+      </div>
+      {error && <p className="error" role="alert">{error}</p>}
+    </Modal>
   );
 }
 
@@ -53,7 +48,7 @@ export function LectureView({ id, home, startAt, reload, toast }: { id: string; 
   const [text, setText] = useState('');
   const [level, setLevel] = useState<Level>(user.settings.level || 'example');
   const [busy, setBusy] = useState(false);
-  const [tab, setTab] = useState<'notes' | 'planks' | 'class'>('notes');
+  const [tab, setTab] = useState<'notes' | 'gaps' | 'class'>('notes');
   const [interim, setInterim] = useState('');
   const rec = useRef<any>(null);
   const liveStart = useRef(0);
@@ -80,7 +75,7 @@ export function LectureView({ id, home, startAt, reload, toast }: { id: string; 
   // Demo replay: reveal the recorded lecture one passage at a time, as if it were live.
   useEffect(() => {
     if (mode !== 'replay' || !data) return;
-    if (shown >= data.segments.length) { setMode('recorded'); toast('Lecture over. Your flags are waiting under "Planks".'); setTab('planks'); return; }
+    if (shown >= data.segments.length) { setMode('recorded'); toast('Lecture over. Your flags are waiting under "Gaps".'); setTab('gaps'); return; }
     const t = setTimeout(() => setShown((n) => n + 1), shown === 0 ? 300 : REPLAY_MS);
     return () => clearTimeout(t);
   }, [mode, shown, data]); // eslint-disable-line
@@ -176,7 +171,7 @@ export function LectureView({ id, home, startAt, reload, toast }: { id: string; 
   return (
     <main className={`lecture ${user.settings.focus ? 'focus' : ''} ${live ? 'is-live' : ''}`}>
       <header className="lecthead">
-        <button className="ghost" onClick={() => go('/')}>‹ Bridge</button>
+        <button className="ghost" onClick={() => go('/')}>‹ Map</button>
         <div>
           <h1>{data.lecture.title}</h1>
           <p className="muted">
@@ -215,12 +210,12 @@ export function LectureView({ id, home, startAt, reload, toast }: { id: string; 
 
         <aside className="side">
           <div className="tabs" role="tablist">
-            {([['notes', 'Notes'], ['planks', `Planks${openMarks.length ? ` (${openMarks.length})` : ''}`], ['class', 'Class']] as const).map(([k, label]) => (
+            {([['notes', 'Notes'], ['gaps', `Gaps${openMarks.length ? ` (${openMarks.length})` : ''}`], ['class', 'Class']] as const).map(([k, label]) => (
               <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{label}</button>
             ))}
           </div>
           {tab === 'notes' && <Notes id={id} data={data} update={update} onTime={jump} toast={toast} />}
-          {tab === 'planks' && (
+          {tab === 'gaps' && (
             <div className="pad">
               {!openMarks.length && <p className="muted">No gaps in this lecture. Press <kbd>F</kbd> whenever you lose the thread.</p>}
               <ul className="todo">
@@ -229,7 +224,7 @@ export function LectureView({ id, home, startAt, reload, toast }: { id: string; 
                   return (
                     <li key={m.id}><button className="row" onClick={() => go(`/repair/${m.id}`)}>
                       <span className="tag gap">{stamp(seg.t_start)}</span>
-                      <span><strong>{m.body || seg.text.slice(0, 60) + '…'}</strong><small>Mend this plank</small></span><span className="chev">›</span>
+                      <span><strong>{m.body || seg.text.slice(0, 60) + '…'}</strong><small>Mend this gap</small></span><span className="chev">›</span>
                     </button></li>
                   );
                 })}
@@ -274,7 +269,7 @@ function MarkChip({ mark: m, open, onToggle, onTime, onResolve, onDelete }: { ma
           {m.answer && <><Tutor text={m.answer} onTime={onTime} /><ReadAloud text={m.answer} /></>}
           {m.ai_error && <OfflineNote error={m.ai_error} />}
           <div className="actions">
-            {m.status === 'open' && <button className="primary small" onClick={() => go(`/repair/${m.id}`)}>Mend this plank</button>}
+            {m.status === 'open' && <button className="primary small" onClick={() => go(`/repair/${m.id}`)}>Mend this gap</button>}
             {m.status === 'open' && <button className="ghost small" onClick={onResolve}>I've got it now</button>}
             <button className="ghost small" onClick={onDelete}>Remove</button>
           </div>
@@ -303,11 +298,6 @@ function Notes({ id, data, update, onTime, toast }: { id: string; data: Data; up
     } catch (e: any) { toast(e.message); }
     setBusy('');
   };
-  const cards = async () => {
-    setBusy('cards');
-    try { const out = await api(`/lectures/${id}/cards`, 'POST'); toast(out.added ? `${out.added} flashcards added to Practice.` : 'You already have cards for this lecture.'); } catch (e: any) { toast(e.message); }
-    setBusy('');
-  };
   const mended = data.marks.filter((m) => m.note_line);
   return (
     <div className="pad notes">
@@ -315,13 +305,12 @@ function Notes({ id, data, update, onTime, toast }: { id: string; data: Data; up
       <textarea id="notes" rows={7} value={body} onChange={(e) => setBody(e.target.value)} placeholder="Your own notes. Questions and flags stay in the margin, so this stays clean." />
       {mended.length > 0 && (
         <div className="added">
-          <h3>Added from mended planks</h3>
+          <h3>Added from mended gaps</h3>
           <ul>{mended.map((m) => <li key={m.id}>{m.note_line}</li>)}</ul>
         </div>
       )}
       <div className="actions">
         <button className="ghost small" disabled={!!busy} onClick={summarise}>{busy === 'summary' ? 'Writing…' : data.notes.summary ? 'Rewrite summary' : 'Write me a summary'}</button>
-        <button className="ghost small" disabled={!!busy} onClick={cards}>{busy === 'cards' ? 'Making…' : 'Make flashcards'}</button>
       </div>
       {data.notes.summary && (
         <div className="summary">

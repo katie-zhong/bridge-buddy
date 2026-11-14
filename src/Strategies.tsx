@@ -1,72 +1,81 @@
-import { api, go, useAsync, Toggle, type Home } from './ui';
+import { useState } from 'react';
+import { api, useAsync, Toggle, type Area, type Home } from './ui';
 
-interface Strategy { id: string; struggle: string; title: string; how: string; active: boolean; helpful: number | null; stat: { used: number; with: number; without: number; demo: boolean } | null }
+interface Picked {
+  key: string; label: string; area: string; strategy: { title: string; how: string; why: string };
+  active: boolean; helpful: number | null; stat: { tried: number; helped: number; demo: boolean } | null;
+}
 
-/** "What helps": recommendations by what the student finds hard, never by diagnosis. */
-export function Strategies({ home, reload }: { home: Home; reload: () => void }) {
-  const { data, reload: refresh } = useAsync<{ strategies: Strategy[]; min_group: number }>(() => api('/strategies'), []);
-  const mine = home.user.struggles;
-  const off = home.user.settings.recs === false;
-  const pick = async (key: string) => {
-    await api('/me', 'PATCH', { struggles: mine.includes(key) ? mine.filter((k) => k !== key) : [...mine, key] });
-    reload();
-  };
-  const set = async (s: Strategy, patch: { active?: boolean; helpful?: boolean }) => {
-    await api(`/strategies/${s.id}`, 'POST', { active: patch.active ?? s.active, helpful: patch.helpful ?? (s.helpful == null ? null : !!s.helpful) });
+/** Areas first, then the specific things inside each area. Never a diagnosis. */
+export function AreaPicker({ areas, picked, onChange }: { areas: Area[]; picked: string[]; onChange: (keys: string[]) => void }) {
+  const [open, setOpen] = useState<string[]>(() => areas.filter((a) => a.details.some((d) => picked.includes(d.key))).map((a) => a.key));
+  return (
+    <div className="areas">
+      {areas.map((a) => {
+        const isOpen = open.includes(a.key), count = a.details.filter((d) => picked.includes(d.key)).length;
+        return (
+          <div key={a.key} className={`area ${isOpen ? 'open' : ''} ${count ? 'has' : ''}`}>
+            <button className="areahead" aria-expanded={isOpen} onClick={() => setOpen(isOpen ? open.filter((k) => k !== a.key) : [...open, a.key])}>
+              <span>{a.label}</span>{count > 0 && <span className="tag proven">{count}</span>}<span className="chev" aria-hidden>{isOpen ? '−' : '+'}</span>
+            </button>
+            {isOpen && (
+              <div className="chips">
+                {a.details.map((d) => {
+                  const on = picked.includes(d.key);
+                  return <button key={d.key} className={on ? 'pick on' : 'pick'} aria-pressed={on} onClick={() => onChange(on ? picked.filter((k) => k !== d.key) : [...picked, d.key])}>{d.label}</button>;
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** One suggested strategy per thing the student picked, with the reason for it. */
+export function Suggestions({ reload, watch }: { reload: () => void; watch: string }) {
+  const { data, reload: refresh } = useAsync<{ picked: Picked[]; min_group: number }>(() => api('/strategies'), [watch]);
+  const set = async (s: Picked, patch: { active?: boolean; helpful?: boolean }) => {
+    await api(`/strategies/${s.key}`, 'POST', { active: patch.active ?? s.active, helpful: patch.helpful ?? (s.helpful == null ? null : !!s.helpful) });
     refresh(); reload();
   };
-  const shown = data?.strategies.filter((s) => mine.includes(s.struggle)) || [];
+  if (!data) return null;
+  if (!data.picked.length) return <p className="muted">Pick something above and Noor will suggest what to try.</p>;
   return (
-    <main className="page narrow">
-      <h1>What helps</h1>
-      <p className="lede">Tell Noor what feels hard. You don't need a diagnosis or the right word for it, and you can change this any time.</p>
-      <section className="card">
-        <h2>Right now, what gets in the way?</h2>
-        <div className="chips">
-          {home.struggles.map((s) => (
-            <button key={s.key} className={mine.includes(s.key) ? 'pick on' : 'pick'} aria-pressed={mine.includes(s.key)} onClick={() => pick(s.key)}>{s.label}</button>
-          ))}
+    <div className="suggestions">
+      {data.picked.map((s) => (
+        <div key={s.key} className={`suggestion ${s.active ? 'active' : ''}`}>
+          <p className="for">{s.label}</p>
+          <div className="between wrap">
+            <h3>{s.strategy.title}</h3>
+            <Toggle checked={s.active} onChange={(v) => set(s, { active: v })}>{s.active ? 'Using' : 'Use this'}</Toggle>
+          </div>
+          <p>{s.strategy.how}</p>
+          <p className="why"><strong>Why:</strong> {s.strategy.why}</p>
+          {s.stat && <p className="fine">Helped {s.stat.helped}% of {s.stat.tried} students who tried it.{s.stat.demo ? ' (Demo data.)' : ''}</p>}
+          {s.active && (
+            <p className="helpful">Helping?
+              <button className={s.helpful === 1 ? 'pick on' : 'pick'} onClick={() => set(s, { helpful: true })}>Yes</button>
+              <button className={s.helpful === 0 ? 'pick on' : 'pick'} onClick={() => set(s, { helpful: false })}>Not really</button>
+            </p>
+          )}
         </div>
-      </section>
+      ))}
+    </div>
+  );
+}
 
-      {off ? <p className="muted">Recommendations are switched off. <button className="link" onClick={() => go('/settings')}>Turn them on in Settings.</button></p> : (
-        <>
-          {!mine.length && <p className="muted">Pick one or more above and Noor will suggest things that worked for other students who said the same.</p>}
-          {shown.map((s) => {
-            const clear = s.stat && s.stat.with - s.stat.without >= 5;
-            return (
-              <section key={s.id} className={`card strategy ${s.active ? 'active' : ''}`}>
-                <div className="between wrap">
-                  <h3>{s.title}</h3>
-                  <Toggle checked={s.active} onChange={(v) => set(s, { active: v })}>{s.active ? 'Using this' : 'Try this'}</Toggle>
-                </div>
-                <p>{s.how}</p>
-                {s.stat ? (
-                  clear ? (
-                    <div className="evidence">
-                      <div className="bars" aria-hidden>
-                        <div><span style={{ width: `${s.stat.with}%` }} className="with" /><b>{s.stat.with}%</b></div>
-                        <div><span style={{ width: `${s.stat.without}%` }} /><b>{s.stat.without}%</b></div>
-                      </div>
-                      <p>Students who said the same thing as you and used this got <strong>{s.stat.with}%</strong> of their week-later riddles right, against <strong>{s.stat.without}%</strong> for those who didn't. Based on {s.stat.used} students.</p>
-                    </div>
-                  ) : <p className="muted">No clear difference in week-later results for this one so far ({s.stat.used} students tried it). It may still suit you.</p>
-                ) : <p className="muted">Not enough students have tried this yet to show results (Noor never shows numbers for fewer than {data!.min_group}).</p>}
-                {s.stat?.demo && <p className="fine">Demo data: these figures come from a generated sample class, not real students.</p>}
-                {s.active && (
-                  <p className="helpful">Is it helping?
-                    <button className={s.helpful === 1 ? 'pick on' : 'pick'} onClick={() => set(s, { helpful: true })}>Yes</button>
-                    <button className={s.helpful === 0 ? 'pick on' : 'pick'} onClick={() => set(s, { helpful: false })}>Not really</button>
-                  </p>
-                )}
-                <details><summary>Why am I seeing this?</summary>
-                  <p className="fine">Because you chose "{home.struggles.find((x) => x.key === s.struggle)?.label}". Noor compares anonymous, grouped results only. Nobody sees what you picked, and nothing here is a diagnosis. If things feel bigger than study strategies, Accessibility Services can talk through formal accommodations.</p>
-                </details>
-              </section>
-            );
-          })}
-        </>
-      )}
-    </main>
+/** Settings section: change what gets in the way and see why each strategy is suggested. */
+export function StrugglesSection({ home, reload }: { home: Home; reload: () => void }) {
+  const picked = home.user.struggles;
+  const save = async (keys: string[]) => { await api('/me', 'PATCH', { struggles: keys }); reload(); };
+  return (
+    <section className="card stack">
+      <h2>What gets in the way</h2>
+      <AreaPicker areas={home.areas} picked={picked} onChange={save} />
+      <h2>Suggested for you</h2>
+      <Suggestions reload={reload} watch={picked.join()} />
+    </section>
   );
 }

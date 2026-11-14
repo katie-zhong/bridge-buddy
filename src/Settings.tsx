@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { api, go, LevelDial, Toggle, type Settings, type User } from './ui';
+import { api, go, LevelDial, Toggle, type Home, type Settings } from './ui';
+import { StrugglesSection } from './Strategies';
 
-export function SettingsPage({ user, reload, signOut }: { user: User; reload: () => void; signOut: () => void }) {
+export function SettingsPage({ home, reload, signOut }: { home: Home; reload: () => void; signOut: () => void }) {
+  const user = home.user;
   const s = user.settings;
   const [confirm, setConfirm] = useState(false);
   const [perm, setPerm] = useState('Notification' in window ? Notification.permission : 'unsupported');
@@ -38,25 +40,23 @@ export function SettingsPage({ user, reload, signOut }: { user: User; reload: ()
 
       {student && (
         <>
+          <StrugglesSection home={home} reload={reload} />
           <section className="card stack">
             <h2>How Noor helps</h2>
             <div><p>Starting support level</p><LevelDial value={s.level || 'example'} onChange={(l) => save({ level: l })} /></div>
             <Toggle checked={!!s.focus} onChange={(v) => save({ focus: v })}>Focus view in lectures: hide the side panel and dim everything but the current passage</Toggle>
             <Toggle checked={!!s.checkpoints} onChange={(v) => save({ checkpoints: v })}>Checkpoint nudges during live lectures</Toggle>
-            <Toggle checked={s.recs !== false} onChange={(v) => save({ recs: v })}>Show "What helps" recommendations</Toggle>
             <button className="ghost" onClick={async () => { await save({ onboarded: false }); go('/'); }}>Show the welcome tour again</button>
           </section>
 
           <section className="card stack">
             <h2>Daily reminder</h2>
-            <p className="muted">One nudge a day at a time you choose. It mentions planks to mend, never a lost streak.</p>
-            <label>Remind me at
+                        <label>Remind me at
               <input type="time" value={s.reminder || ''} onChange={(e) => save({ reminder: e.target.value })} />
             </label>
             {s.reminder && <button className="ghost" onClick={() => save({ reminder: '' })}>Turn reminder off</button>}
             {perm === 'default' && <button className="ghost" onClick={async () => setPerm(await Notification.requestPermission())}>Allow notifications on this device</button>}
             {perm === 'denied' && <p className="fine">Notifications are blocked in this browser, so the reminder will show inside Noor instead.</p>}
-            <p className="fine">Reminders appear while Noor is open in a browser tab.</p>
           </section>
         </>
       )}

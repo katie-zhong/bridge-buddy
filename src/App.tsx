@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
-import { api, go, session, profile, signIn, DEMO_NAME, useAsync, when, stamp, type Home, type User } from './ui';
-import { Bridge, Troll } from './Troll';
+import { api, go, session, MATERIALS, profile, signIn, DEMO_NAME, useAsync, when, type Home, type User } from './ui';
+import { Troll } from './Troll';
+import { BridgeMap, rotWord } from './Map';
+import { Renovate } from './Renovate';
 import { Welcome } from './Welcome';
 import { LectureView, NewLecture } from './Lecture';
 import { Repair } from './Repair';
-import { Practice } from './Practice';
-import { Strategies } from './Strategies';
 import { Instructor } from './Instructor';
 import { SettingsPage } from './Settings';
 
@@ -40,7 +40,7 @@ function Login({ onDone }: { onDone: () => void }) {
   };
   return (
     <main className="login">
-      <Troll size={150} mood="happy" />
+      <Troll size={150} />
       <h1>Noor</h1>
       <p className="lede">Your Northbridge buddy. Flag what you miss in a lecture, keep listening, and mend the gap later.</p>
       <form onSubmit={submit} className="card">
@@ -85,98 +85,64 @@ function applyPrefs(u?: User) {
   root.dataset.calm = s.calm ? '1' : '';
 }
 
+const date = (ts: number) => new Date(ts * 1000).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+
 function Today({ home }: { home: Home }) {
-  const { planks, streak, open, recalls, deadlines, course } = home;
+  const { courses, streak, open, deadlines } = home;
+  const [adding, setAdding] = useState<string | null>(null);
+  const planks = courses.flatMap((c) => c.planks);
+  const rotting = planks.filter((p) => p.rot > 0).length, gaps = planks.filter((p) => p.open > 0).length;
+  const mood = streak.today ? 'grin' : gaps || rotting ? 'think' : 'idle';
+  const line = gaps ? `${gaps} ${gaps === 1 ? 'plank has a gap' : 'planks have gaps'}.`
+    : rotting ? `${rotting} ${rotting === 1 ? 'plank is' : 'planks are'} rotting.`
+    : 'Your bridges are holding.';
+  const addTo = courses.find((c) => c.id === adding);
   const now = Date.now() / 1000;
-  const due = recalls.filter((r) => r.due_at <= now);
-  const count = (s: string) => planks.filter((p) => p.state === s).length;
-  const mood = open.length ? 'think' : streak.today ? 'happy' : 'idle';
-  const gaps = count('gap');
-  const fresh = planks.every((p) => p.state === 'plain') && !recalls.length;
-  const demo = home.lectures.find((l) => l.live_demo);
-  const line = gaps
-    ? `${gaps} ${gaps === 1 ? 'plank is' : 'planks are'} missing. Mend one and I'll stop staring.`
-    : due.length ? 'No gaps. But I have a riddle waiting for you.'
-    : planks.some((p) => p.state !== 'plain') ? 'Your bridge is holding. Nice work.'
-    : 'Open a lecture. Press F when you get lost. I\'ll remember where.';
   return (
     <main className="page">
-      <section className="hero card">
-        <div className="herohead">
-          <div>
-            <p className="eyebrow">{course.code} · {course.title}</p>
-            <h1>Hi {home.user.name}. {line}</h1>
-          </div>
-          <div className={`streak ${streak.today ? 'lit' : ''}`} title="Days in a row with a riddle solved. Logging in does not count.">
-            <strong>{streak.days}</strong><span>day{streak.days === 1 ? '' : 's'} mending</span>
-          </div>
+      <div className="between wrap maphead">
+        <h1>Hi {home.user.name}. {line}</h1>
+        <div className={`streak ${streak.today ? 'lit' : ''}`} title="Days in a row you mended a gap or solved a practice problem. Logging in does not count.">
+          <strong>{streak.days}</strong><span>day{streak.days === 1 ? '' : 's'} building</span>
         </div>
-        <Bridge planks={planks} examLabel={course.exam_label} examIn={when(course.exam_at)} mood={mood} />
-        <ul className="legend">
-          <li><i className="sw gap" />{count('gap')} to repair</li>
-          <li><i className="sw mended" />{count('mended')} mended</li>
-          <li><i className="sw proven" />{count('proven')} proven a week later</li>
-          <li><i className="sw plain" />{count('plain')} no gaps flagged</li>
-        </ul>
-      </section>
-
-      {fresh && demo && (
-        <section className="card starthere">
-          <Troll size={72} mood="happy" />
-          <div>
-            <h2>Start here</h2>
-            <p>Sit in on today's lecture. Press <kbd>F</kbd> the moment you get lost, then come back and mend the plank.</p>
-            <button className="primary" onClick={() => go(`/lecture/${demo.id}`)}>Open {demo.title.split(':')[0]}</button>
-          </div>
-        </section>
-      )}
-
-      <div className="cols">
-        <section className="card">
-          <h2>Today</h2>
-          {!open.length && !due.length && <p className="muted">Nothing to mend right now.</p>}
-          <ul className="todo">
-            {due.map((r) => (
-              <li key={r.id}><button className="row" onClick={() => go('/practice')}>
-                <span className="tag proven">Riddle</span><span><strong>Week-later check</strong><small>{r.lecture.split(':')[0]} · {stamp(r.t_start)}</small></span><span className="chev">›</span>
-              </button></li>
-            ))}
-            {open.map((m) => (
-              <li key={m.id}><button className="row" onClick={() => go(`/repair/${m.id}`)}>
-                <span className="tag gap">{m.kind === 'question' ? 'Question' : 'Flag'}</span>
-                <span><strong>{m.body || `${(m.seg_text || '').slice(0, 64)}…`}</strong><small>{(m.lecture || '').split(':')[0]} · {stamp(m.t_start || 0)}</small></span><span className="chev">›</span>
-              </button></li>
-            ))}
-          </ul>
-          {home.cards_due > 0 && <button className="ghost" onClick={() => go('/practice')}>{home.cards_due} flashcard{home.cards_due === 1 ? '' : 's'} ready to review ›</button>}
-        </section>
-
-        <section className="card">
-          <h2>Coming up</h2>
-          <ul className="todo">
-            {deadlines.map((d) => (
-              <li key={d.id} className="row static">
-                <span className={`tag ${d.due_at - now < 2.5 * 86400 ? 'soon' : ''}`}>{when(d.due_at)}</span>
-                <span><strong>{d.title}</strong><small>{d.course} · from {d.source}</small></span>
-              </li>
-            ))}
-          </ul>
-          <p className="fine">Pulled into one list from Brightspace, course sites and your calendar.</p>
-        </section>
       </div>
+      <BridgeMap courses={courses} open={open} mood={mood} onAdd={setAdding} />
+      <ul className="legend">
+        {MATERIALS.map((m, i) => <li key={m}><i className={`sw m${i}`} />{m}</li>)}
+        <li><i className="sw rotsw" />Rotting</li>
+        <li><i className="sw gapsw" />Gap flagged</li>
+      </ul>
 
-      <section className="card">
-        <div className="between"><h2>Lectures</h2><NewLecture /></div>
-        <ul className="todo">
-          {home.lectures.map((l) => (
-            <li key={l.id}><button className="row" onClick={() => go(`/lecture/${l.id}`)}>
-              <span className="tag">{l.source}</span>
-              <span><strong>{l.title}</strong><small>{when(l.held_at)} · {Math.round(((l.segments || 0) * 30) / 60)} min{l.live_demo ? ' · live replay available' : ''}</small></span>
-              {l.open ? <span className="tag gap">{l.open} to repair</span> : null}<span className="chev">›</span>
-            </button></li>
-          ))}
-        </ul>
-      </section>
+      <h2 className="sectionhead">Coming up</h2>
+      <div className="deadlines">
+        {deadlines.map((d) => {
+          const course = courses.find((c) => c.id === d.course_id);
+          const covered = planks.filter((p) => d.covers.includes(p.lecture_id));
+          return (
+            <article key={d.id} className="card deadline">
+              <div className="between">
+                <span className={`tag ${d.due_at - now < 2.5 * 86400 ? 'soon' : ''}`}>{when(d.due_at)}</span>
+                <small>{date(d.due_at)}</small>
+              </div>
+              <h3>{d.title}</h3>
+              <p className="muted">{course?.code} · {d.kind}{d.weight ? ` · ${d.weight}% of grade` : ''} · from {d.source}</p>
+              <p>{d.detail}</p>
+              {covered.length > 0 && (
+                <div className="covers">
+                  <small>Planks it covers</small>
+                  {covered.map((p) => (
+                    <button key={p.lecture_id} className={`cover ${p.rot || p.open ? 'weak' : ''}`} onClick={() => go(`/renovate/${p.lecture_id}`)} title={`Renovate ${p.title}`}>
+                      <i className={`sw m${p.level}`} />{p.title.split(':')[0]}
+                      <span>{[p.open ? 'gap' : '', rotWord(p).toLowerCase()].filter(Boolean).join(', ') || MATERIALS[p.level].toLowerCase()}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </article>
+          );
+        })}
+      </div>
+      {addTo && <NewLecture course={addTo} onClose={() => setAdding(null)} />}
     </main>
   );
 }
@@ -190,6 +156,8 @@ export function App() {
   const user = home.data?.user;
 
   useEffect(() => applyPrefs(user), [user]);
+  // Coming back to the map: fetch it again, so a lecture added or worked on elsewhere shows up.
+  useEffect(() => { if (authed && hash === '/') home.reload(); }, [hash]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (toast) { const t = setTimeout(() => setToast(''), 4500); return () => clearTimeout(t); } }, [toast]);
 
   // Daily reminder at the time the student chose. Fires while Noor is open in a tab.
@@ -205,7 +173,7 @@ export function App() {
       if (hm !== at || fired) return;
       try { localStorage.setItem(key, '1'); } catch { /* ignore */ }
       const n = home.data?.open.length || 0;
-      const msg = n ? `${n} plank${n === 1 ? '' : 's'} to mend. Five minutes is enough.` : 'Your bridge is holding. One riddle to keep it that way?';
+      const msg = n ? `${n} gap${n === 1 ? '' : 's'} to mend. Five minutes is enough.` : 'Your bridges are holding. Renovate one plank to keep them that way?';
       if ('Notification' in window && Notification.permission === 'granted') new Notification('Noor', { body: msg });
       else setToast(msg);
     };
@@ -223,7 +191,7 @@ export function App() {
   const instructor = h.user.role === 'instructor';
   const nav = instructor
     ? [['/teach', 'Class view'], ['/settings', 'Settings']]
-    : [['/', 'Bridge'], ['/practice', 'Practice'], ['/help', 'What helps'], ['/settings', 'Settings']];
+    : [['/', 'Map'], ['/settings', 'Settings']];
   const reload = () => home.reload();
   const signOut = () => {
     const p = profile.get();
@@ -234,10 +202,9 @@ export function App() {
   let screen;
   if (!instructor && !h.user.settings.onboarded) screen = <Welcome home={h} reload={reload} />;
   else if (parts[0] === 'lecture') screen = <LectureView key={parts[1]} id={parts[1]} home={h} startAt={Number(new URLSearchParams(query).get('t')) || undefined} reload={reload} toast={setToast} />;
-  else if (parts[0] === 'repair') screen = <><Today home={h} /><Repair id={parts[1]} user={h.user} onClose={() => { reload(); history.length > 1 ? history.back() : go('/'); }} /></>;
-  else if (parts[0] === 'practice') screen = <Practice reload={reload} />;
-  else if (parts[0] === 'help') screen = <Strategies home={h} reload={reload} />;
-  else if (parts[0] === 'settings') screen = <SettingsPage user={h.user} reload={reload} signOut={signOut} />;
+  else if (parts[0] === 'repair') screen = <><Today home={h} /><Repair id={parts[1]} user={h.user} onClose={() => { reload(); go('/'); }} /></>;
+  else if (parts[0] === 'renovate') screen = <><Today home={h} /><Renovate id={parts[1]} onClose={() => { reload(); go('/'); }} /></>;
+  else if (parts[0] === 'settings') screen = <SettingsPage home={h} reload={reload} signOut={signOut} />;
   else if (parts[0] === 'teach' || instructor) screen = <Instructor home={h} />;
   else screen = <Today home={h} />;
 
