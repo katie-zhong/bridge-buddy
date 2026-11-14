@@ -24,7 +24,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['server/**/*.mjs', 'scripts/**/*.mjs', '.claude/hooks/**/*.mjs', '*.config.{js,ts}'],
+    files: ['server/**/*.mjs', 'api/**/*.mjs', 'scripts/**/*.mjs', '.claude/hooks/**/*.mjs', '*.config.{js,ts}'],
     languageOptions: { globals: globals.node },
     rules: { 'no-unused-vars': ['error', { argsIgnorePattern: '^_', caughtErrors: 'none', ignoreRestSiblings: true }] },
   },

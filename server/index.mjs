@@ -11,7 +11,9 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const MIN_GROUP = 5; // never show an aggregate about fewer than this many students
 const BOXES = [0, 1, 3, 7, 14];
 
-export function createApp(db = openDb()) {
+// Returns the (req, res) request listener. Used directly by the Vercel Function in api/,
+// and wrapped in an http.Server by createApp() for local dev, `npm start` and tests.
+export function createHandler(db = openDb()) {
   const q = (sql, ...a) => db.prepare(sql).all(...a);
   const one = (sql, ...a) => db.prepare(sql).get(...a);
   const run = (sql, ...a) => db.prepare(sql).run(...a);
@@ -392,7 +394,7 @@ export function createApp(db = openDb()) {
   const dist = path.join(here, '..', 'dist');
   const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.json': 'application/json', '.woff2': 'font/woff2' };
 
-  return http.createServer(async (req, res) => {
+  return async (req, res) => {
     const url = new URL(req.url, 'http://x');
     const send = (status, data) => {
       res.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store' });
@@ -428,8 +430,10 @@ export function createApp(db = openDb()) {
       if (!e.status) console.error(e);
       send(e.status || 500, { error: e.status ? e.message : 'Something went wrong on our side' });
     }
-  });
+  };
 }
+
+export const createApp = (db) => http.createServer(createHandler(db));
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const port = Number(process.env.PORT || 8787);

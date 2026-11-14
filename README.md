@@ -31,6 +31,10 @@ npm run build && npm start
 npm test
 ```
 
+### Deploy to Vercel
+
+See [docs/DEPLOY.md](docs/DEPLOY.md). Note that data does not persist on Vercel until a hosted database is added.
+
 ### Windows
 
 If PowerShell says "running scripts is disabled on this system", use `npm.cmd` in place of
@@ -87,5 +91,6 @@ server/ai.mjs            Claude tutor + offline fallback
 server/db.mjs            schema and seed
 server/content.mjs       demo course, strategies
 server/integrations.mjs  Panopto / Brightspace / M365 boundary, transcript parser
+api/norbu.mjs            Vercel Function entry (wraps the same API)
 src/                     React app (Lecture, Repair, Practice, Strategies, Instructor, Settings)
 ```

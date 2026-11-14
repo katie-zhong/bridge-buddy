@@ -19,7 +19,9 @@ server/        Node HTTP API (plain node:http, no framework), ES modules (.mjs)
 src/           React 18 SPA built with Vite, strict TypeScript
   ui.tsx         shared API types, the `api()` client, hooks, small components
   <Screen>.tsx   one file per screen (Lecture, Repair, Practice, Strategies, Instructor, Settings)
+api/norbu.mjs    Vercel Function entry: wraps createHandler() from server/index.mjs
 scripts/dev.mjs  runs API (:8787) + Vite (:5173, proxies /api) together
+vercel.json      Vercel build, /api rewrite, headers (see docs/DEPLOY.md)
 docs/SPEC.md     product + technical specification
 ```
 
@@ -35,6 +37,7 @@ Directory-specific rules: `server/CLAUDE.md`, `src/CLAUDE.md`.
 | Tests | `npm test` |
 | Everything | `npm run check` |
 | Production build / serve | `npm run build && npm start` (:8787) |
+| Deploy | Vercel, see `docs/DEPLOY.md` |
 
 ## Cross-stack rules
 
@@ -51,6 +54,8 @@ Directory-specific rules: `server/CLAUDE.md`, `src/CLAUDE.md`.
   than `MIN_GROUP` (5), and instructor views never show names.
 - **Secrets stay on the server.** `ANTHROPIC_API_KEY` is read only in `server/ai.mjs`.
   Nothing secret goes to the client or into the repo. Never read or print `.env` files.
+- **Two entry points, one app.** `createHandler()` is the whole API. `createApp()` wraps it for
+  Node and `api/norbu.mjs` wraps it for Vercel. Don't add logic to either wrapper.
 - **AI calls degrade.** Every Claude call goes through `withFallback()` so the app still
   works offline and tells the user when it fell back.
 

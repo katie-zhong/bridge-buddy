@@ -71,7 +71,9 @@ Browser (React SPA, Vite) ──/api/* JSON──▶ Node server (node:http) ─
   points at a small passage.
 - **AI:** model from `NORBU_MODEL` (default `claude-opus-5-5`); structured outputs via zod
   schemas (riddle, grade, flashcards); free text for ask/explain/summary.
-- **Production:** one process serves the built SPA and the API on port 8787.
+- **Production:** either one Node process serving the SPA and the API on port 8787
+  (`npm start`), or Vercel (static `dist/` on the CDN, the API as one function, `api/norbu.mjs`).
+  See `docs/DEPLOY.md`.
 
 ## 6. Tech stack decision (2026-11-14)
 
@@ -115,6 +117,8 @@ All three plug in through `server/integrations.mjs` only.
 
 ## 8. Known gaps and open questions
 
+- **(open)** On Vercel the SQLite store lives in `/tmp` and resets on cold start (demo only).
+  A pilot needs a hosted DB (Turso/libSQL or Postgres); see `docs/DEPLOY.md`.
 - **(open)** SSO via Entra ID is a precondition for any real student data.
 - **(open)** Reminders fire only while a tab is open; phone push needs a service worker
   and push service.
