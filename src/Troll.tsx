@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { go, type Plank } from './ui';
 
 export type Mood = 'idle' | 'happy' | 'think';
@@ -5,7 +6,7 @@ export type PlankState = Plank['state'];
 
 /**
  * Painterly look, defined once for the whole app (rendered in main.tsx).
- * - `paint`: soft wobbly edges plus pigment granulation, for small shapes (planks, Noor).
+ * - `paint`: soft wobbly edges plus pigment granulation, for small shapes (planks, Norbu).
  * - `paint-wide`: a looser wobble for scenery (hills, cliffs, water).
  * - `woodgrain`: thin streaks laid over a plank's base colour.
  */
@@ -101,7 +102,7 @@ function teeth(x0: number, x1: number, y: number, dip: number, n: number, len: n
   return `${d} Q${(x0 + x1) / 2} ${y + 2 * dip} ${x0} ${y} Z`;
 }
 
-/** Noor: a small furry bridge troll with tall ears and a toothy grin. Drawn in a 120 x 120 box. */
+/** Norbu: a small furry bridge troll with tall ears and a one-tooth smile (a full toothy grin when you get it right). Drawn in a 120 x 120 box. */
 export function TrollArt({ mood = 'idle' }: { mood?: Mood }) {
   const happy = mood === 'happy', think = mood === 'think';
   return (
@@ -154,97 +155,94 @@ export function TrollArt({ mood = 'idle' }: { mood?: Mood }) {
       <ellipse cx="33" cy="66" rx="5.5" ry="3.4" fill={BLUSH} opacity=".7" />
       <ellipse cx="87" cy="66" rx="5.5" ry="3.4" fill={BLUSH} opacity=".7" />
       <ellipse cx="60" cy="62.5" rx="2.6" ry="1.8" fill="#d98f80" />
-      {/* the grin */}
-      {think ? (
+      {/* the mouth: a closed smile with one tooth (like the first NorBu) by default; the open, toothy
+          grin is saved for a riddle answered well (mood "happy") */}
+      {happy ? (
+        <>
+          <path d="M40 67 Q60 73 80 67 Q60 92 40 67 Z" fill="#5a2f33" />
+          <path d={teeth(43, 77, 68, 1.3, 8, 4.6)} fill="#fff" />
+        </>
+      ) : think ? (
         <path d="M52 73 Q60 70 68 74" fill="none" stroke={INK} strokeWidth="3" strokeLinecap="round" />
       ) : (
         <>
-          <path d={happy ? 'M40 67 Q60 73 80 67 Q60 92 40 67 Z' : 'M41 68 Q60 74 79 68 Q60 86 41 68 Z'} fill="#5a2f33" />
-          <path d={teeth(43, 77, happy ? 68 : 69, 1.3, 8, 4.6)} fill="#fff" />
+          <path d="M44 69 Q60 80 76 69" fill="none" stroke={INK} strokeWidth="3" strokeLinecap="round" />
+          <path d="M49.6 74.4 L52.4 66.8 L55.6 75.4 Z" fill="#fffaf0" />
         </>
       )}
-      {/* the snaggletooth: one bottom tooth that pokes up over the lip, off-centre */}
-      <path d={think ? 'M50.4 74.6 Q51 70 52.6 66.4 Q55 70 56.4 74.3 Z' : happy ? 'M48.6 78.6 Q49.2 72.6 51 67.2 Q53.4 72.4 54.6 78.3 Z' : 'M49.2 77.4 Q49.8 71.6 51.6 66.6 Q54 71.6 55.2 77.1 Z'} fill="#fffaf0" />
-      <path d={think ? 'M52.6 66.4 Q55 70 56.4 74.3 L54.8 74.4 Z' : happy ? 'M51 67.2 Q53.4 72.4 54.6 78.3 L53.1 78.4 Z' : 'M51.6 66.6 Q54 71.6 55.2 77.1 L53.7 77.2 Z'} fill="#e6d6bc" />
     </g>
   );
 }
 
 export function Troll({ mood, size = 96 }: { mood?: Mood; size?: number }) {
-  return <svg viewBox="0 0 120 120" width={size} height={size} role="img" aria-label="Noor the bridge troll" className="trollsvg"><TrollArt mood={mood} /></svg>;
+  return <svg viewBox="0 0 120 120" width={size} height={size} role="img" aria-label="Norbu the bridge troll" className="trollsvg"><TrollArt mood={mood} /></svg>;
 }
 
-const WORDS = { plain: 'no gaps flagged', gap: 'missing, tap to mend', mended: 'mended, recall check pending', proven: 'proven by delayed recall' };
+const WORDS = { plain: 'sound', gap: 'missing, tap to mend', mended: 'patched, recall check pending', proven: 'proven by delayed recall' };
 
-// The deck and the hand rope are both shallow curves between the two cliffs.
-const DECK = { x0: 132, x1: 688, y: 152, sag: 30 }, ROPE = { x0: 118, x1: 702, y: 92, sag: 56 };
-const curve = (c: typeof DECK, x: number) => { const t = (x - c.x0) / (c.x1 - c.x0); return c.y + 4 * c.sag * t * (1 - t); };
-const path = (c: typeof DECK, dy = 0) => `M${c.x0} ${c.y + dy} Q${(c.x0 + c.x1) / 2} ${c.y + 2 * c.sag + dy} ${c.x1} ${c.y + dy}`;
-
-/** The course as a rope bridge to the next exam. Each idea is one plank; a flagged idea is a hole. */
+/** The course as a painted stone arch to the next exam. Each idea is one wooden plank on the deck. */
 export function Bridge({ planks, examLabel, examIn, mood }: { planks: Plank[]; examLabel: string; examIn: string; mood: Mood }) {
+  const [tip, setTip] = useState<number | null>(null);
+  const W = 1000, H = 290, deck = 118, x0 = 110, x1 = W - 110, gap = 6;
   const n = Math.max(planks.length, 1);
-  const step = (DECK.x1 - DECK.x0) / n;
-  const posts = Array.from({ length: n + 1 }, (_, i) => DECK.x0 + i * step);
+  const pw = (x1 - x0 - gap * (n - 1)) / n;
+  const tipPlank = tip == null ? null : planks[tip];
+  const tipX = tip == null ? 0 : Math.min(Math.max(x0 + tip * (pw + gap) + pw / 2, 100), W - 100);
+  const tipW = tipPlank ? Math.min(260, tipPlank.title.length * 7.6 + 32) : 0;
   return (
-    <svg viewBox="0 0 820 330" className="bridge" role="group" aria-label={`Your bridge to ${examLabel}`}>
-      <defs>
-        <linearGradient id="sky" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="#cfe9ee" /><stop offset="1" stopColor="#f6f0dd" /></linearGradient>
-        <linearGradient id="water" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="#7cc4c9" /><stop offset="1" stopColor="#4c9aa6" /></linearGradient>
-        <linearGradient id="earth" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="#b79a78" /><stop offset="1" stopColor="#8c7359" /></linearGradient>
-              </defs>
-      <rect width="820" height="330" fill="url(#sky)" />
-      <circle cx="640" cy="62" r="30" fill="#fff6d6" opacity=".9" />
-      <g filter="url(#paint-wide)">
-      <path d="M0 215 C90 150 190 170 280 205 C380 150 470 150 560 200 C650 160 740 165 820 205 V330 H0 Z" fill="#bcdcc0" />
-      <path d="M0 240 C120 200 220 215 330 236 C450 205 560 210 660 234 C730 220 780 222 820 230 V330 H0 Z" fill="#a3cfaa" />
+    <svg viewBox={`0 0 ${W} ${H}`} className="bridge" role="group" aria-label={`Your bridge to ${examLabel}`} onMouseLeave={() => setTip(null)}>
+      <rect width={W} height={H} fill="#e8f2ee" />
       {/* river */}
-      <rect x="0" y="262" width="820" height="68" fill="url(#water)" />
-      </g>
-      <path className="ripple" d="M190 282 q14 -6 28 0 t28 0 M330 304 q14 -6 28 0 t28 0 M540 286 q14 -6 28 0 t28 0 M250 316 q10 -5 20 0 M610 310 q12 -5 24 0" fill="none" stroke="#fff" strokeOpacity=".55" strokeWidth="2.5" strokeLinecap="round" />
-      {/* Noor on a rock under the bridge */}
-      <g filter="url(#paint)">
-        <ellipse cx="410" cy="302" rx="70" ry="14" fill="#8f8a7c" />
-        <ellipse cx="410" cy="297" rx="62" ry="11" fill="#aaa596" />
-      </g>
-      <g transform="translate(359 198) scale(.85)"><TrollArt mood={mood} /></g>
-      {/* cliffs */}
       <g filter="url(#paint-wide)">
-      <path d="M0 150 H150 C140 190 162 236 148 330 H0 Z" fill="url(#earth)" />
-      <path d="M820 150 H670 C680 190 658 236 672 330 H820 Z" fill="url(#earth)" />
-      <path d="M0 136 C60 128 116 132 158 148 C152 158 146 160 138 164 C96 150 50 150 0 158 Z" fill="#86bd7f" />
-      <path d="M820 136 C760 128 704 132 662 148 C668 158 674 160 682 164 C724 150 770 150 820 158 Z" fill="#86bd7f" />
+        <path d={`M0 ${H - 72} C300 ${H - 82} 600 ${H - 62} ${W} ${H - 76} V${H} H0Z`} fill="#9fcfcf" />
+        <path d={`M0 ${H - 40} C400 ${H - 50} 700 ${H - 30} ${W} ${H - 44} V${H} H0Z`} fill="#7fb8bb" />
       </g>
-      {/* far rope and hangers */}
-      <path d={path(ROPE, -7)} fill="none" stroke="#b9a184" strokeWidth="3" strokeLinecap="round" />
-      {posts.map((x) => <line key={x} x1={x} y1={curve(ROPE, x)} x2={x} y2={curve(DECK, x) + 4} stroke="#a68c6c" strokeWidth="2" />)}
-      {/* the planks are the bridge */}
+      <path className="ripple" d={`M180 ${H - 50} q14 -6 28 0 M620 ${H - 30} q14 -6 28 0 M800 ${H - 56} q10 -5 20 0`} stroke="#fff" strokeOpacity=".6" strokeWidth="2.4" fill="none" strokeLinecap="round" />
+      {/* banks */}
+      <g filter="url(#paint-wide)">
+        <path d={`M0 150 C50 136 100 140 150 162 L170 ${H} H0Z`} fill="#a7c98f" />
+        <path d={`M${W} 150 C${W - 50} 136 ${W - 100} 140 ${W - 150} 162 L${W - 170} ${H} H${W}Z`} fill="#a7c98f" />
+        <path d={`M0 180 C40 172 90 176 140 190 L150 ${H} H0Z`} fill="#94bd7d" opacity=".7" />
+      </g>
+      {/* stone arch */}
+      <g filter="url(#paint)">
+        <path d={`M80 ${deck + 8} H${W - 80} V${H - 60} H${W - 130} Q${W / 2} 70 130 ${H - 60} H80Z`} fill="#d9d1c0" />
+        <path d={`M80 ${deck + 8} H${W - 80} V${deck + 24} H80Z`} fill="#c7bfad" />
+      </g>
+      <path d={`M150 ${deck + 50} h40 M230 ${deck + 40} h34 M${W - 260} ${deck + 42} h34 M${W - 190} ${deck + 52} h40 M100 ${deck + 90} h30 M${W - 130} ${deck + 90} h30`} stroke="#b5ad9b" strokeWidth="2.4" strokeLinecap="round" opacity=".6" />
+      {/* Norbu on a rock under the arch */}
+      <g filter="url(#paint)"><ellipse cx={W / 2} cy={H - 46} rx="70" ry="14" fill="#a39d8e" /></g>
+      <g transform={`translate(${W / 2 - 48} ${H - 150}) scale(.8)`}><TrollArt mood={mood} /></g>
+      {/* the planks are the deck */}
       {planks.map((p, i) => {
-        const xa = posts[i], xb = posts[i + 1], ya = curve(DECK, xa), yb = curve(DECK, xb);
-        const len = Math.hypot(xb - xa, yb - ya) - 5, angle = (Math.atan2(yb - ya, xb - xa) * 180) / Math.PI;
         const open = () => go(`/lecture/${p.lecture_id}?t=${p.t_start}`);
         return (
           <g key={p.lecture_id + p.concept} className={`plank ${p.state}`} role="link" tabIndex={0} aria-label={`${p.title}: ${WORDS[p.state]}`}
-            transform={`translate(${(xa + xb) / 2} ${(ya + yb) / 2}) rotate(${angle})`} onClick={open} onKeyDown={(e) => e.key === 'Enter' && open()}>
-            <title>{`${p.title}: ${WORDS[p.state]}`}</title>
-            <PlankArt state={p.state} len={len} h={17} />
-            <rect className="ring" x={-len / 2 - 3} y="-11.5" width={len + 6} height="23" rx="7" />
+            transform={`translate(${x0 + i * (pw + gap) + pw / 2} ${deck - 13})`} onClick={open} onKeyDown={(e) => e.key === 'Enter' && open()}
+            onMouseEnter={() => setTip(i)} onFocus={() => setTip(i)} onBlur={() => setTip(null)}>
+            <PlankArt state={p.state} len={pw} h={26} />
+            <rect className="ring" x={-pw / 2 - 3} y="-16" width={pw + 6} height="32" rx="7" />
           </g>
         );
       })}
-      {/* near rope, posts */}
-      <path d={path(ROPE)} fill="none" stroke="#8a6f52" strokeWidth="4" strokeLinecap="round" />
-      <path d="M118 92 L78 148 M702 92 L742 148" stroke="#8a6f52" strokeWidth="4" strokeLinecap="round" />
-      <rect x="111" y="82" width="14" height="76" rx="5" fill="#9b7b58" /><rect x="695" y="82" width="14" height="76" rx="5" fill="#9b7b58" />
-      <rect x="109" y="78" width="18" height="9" rx="4" fill="#7d6245" /><rect x="693" y="78" width="18" height="9" rx="4" fill="#7d6245" />
       {/* start sign and exam flag */}
-      <rect x="40" y="112" width="6" height="34" rx="3" fill="#7d6245" />
-      <rect x="10" y="88" width="68" height="28" rx="8" fill="#fff8ea" filter="url(#paint)" />
-      <text x="44" y="107" textAnchor="middle" className="sign">Week 1</text>
-      <rect x="793" y="52" width="6" height="96" rx="3" fill="#7d6245" />
-      <path d="M794 58 H706 l11 16 l-11 16 H794 Z" fill="#c8553d" filter="url(#paint)" />
-      <text x="756" y="79" textAnchor="middle" className="sign light">{examLabel}</text>
-      <text x="760" y="182" textAnchor="middle" className="sign small">{examIn}</text>
+      <g filter="url(#paint)">
+        <rect x="46" y="96" width="5" height="60" rx="2" fill="#a08a66" />
+        <rect x="16" y="72" width="66" height="28" rx="8" fill="#fffdf7" />
+        <rect x={W - 52} y="56" width="5" height="100" rx="2" fill="#a08a66" />
+        <path d={`M${W - 48} 58 H${W - 150} l12 15 l-12 15 H${W - 48}Z`} fill="#d6684d" />
+      </g>
+      <text x="49" y="91" textAnchor="middle" className="sign">Week 1</text>
+      <text x={W - 96} y="78" textAnchor="middle" className="sign light">{examLabel}</text>
+      <text x={W - 50} y="178" textAnchor="middle" className="sign small">{examIn}</text>
+      {/* hover / focus label */}
+      {tipPlank && (
+        <g className="planktip" aria-hidden>
+          <rect x={tipX - tipW / 2} y={deck - 74} width={tipW} height="34" rx="10" />
+          <path d={`M${tipX - 7} ${deck - 41} l7 8 l7 -8Z`} />
+          <text x={tipX} y={deck - 52} textAnchor="middle">{tipPlank.title}</text>
+        </g>
+      )}
     </svg>
   );
 }

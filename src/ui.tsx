@@ -14,6 +14,31 @@ export interface Settings {
 }
 export type Speed = 0.75 | 1 | 1.5 | 2;
 export const SPEEDS: Speed[] = [0.75, 1, 1.5, 2];
+export type Role = 'instructor' | 'ta' | 'isa';
+export interface Course {
+  code: string; title: string; source: string; demo: boolean; synced_at: number;
+  team: { role: Role; role_label: string; name: string; email: string }[];
+  office_hours: { name: string; role: Role | null; day: number; start: string; end: string; teams_url: string | null }[];
+  routing: { topic: string; role: Role; rule: string }[];
+}
+export interface Integrations { brightspace: { connected: boolean; demo: boolean }; readwrite: { licensed: boolean; source: string | null } | null }
+export type RwColour = 'key' | 'term' | 'example' | 'question';
+export interface ReadWrite { licensed: boolean; highlights: Record<string, RwColour> }
+
+/** The next start of a weekly slot (day 0 = Sunday, "HH:MM"), in the viewer's time zone. */
+export function nextSlot(day: number, hhmm: string, from = new Date()): Date {
+  const [h, m] = hhmm.split(':').map(Number);
+  const d = new Date(from);
+  d.setHours(h, m, 0, 0);
+  d.setDate(d.getDate() + ((day - d.getDay() + 7) % 7));
+  if (d < from) d.setDate(d.getDate() + 7);
+  return d;
+}
+
+/** A mailto: link with the subject and body filled in. */
+export const mailto = (to: string, subject: string, body: string) =>
+  `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
 export interface Strategy {
   id: string; struggle: string; title: string; how: string; setting?: Settings; active: boolean; helpful: number | null;
   stat: { used: number; with: number; without: number; demo: boolean } | null;
@@ -43,7 +68,7 @@ export const session = {
   set token(v: string | null) { try { v ? localStorage.setItem('norbu-token', v) : localStorage.removeItem('norbu-token'); } catch { /* private mode */ } },
 };
 
-// The name and role someone signed in with, kept in this browser. With `demo` on, Noor signs
+// The name and role someone signed in with, kept in this browser. With `demo` on, Bridgeway signs
 // them in automatically (no login screen), and silently signs them in again if the server has
 // forgotten them (e.g. a Vercel cold start wiped the demo database).
 const Profile = z.object({
@@ -213,7 +238,9 @@ export function LevelDial({ value, onChange }: { value: Level; onChange: (l: Lev
   return (
     <div className="dial" role="radiogroup" aria-label="How much support">
       {LEVELS.map((l) => (
-        <button key={l.key} role="radio" aria-checked={value === l.key} className={value === l.key ? 'on' : ''} title={l.blurb} onClick={() => onChange(l.key)}>{l.label}</button>
+        <button key={l.key} role="radio" aria-checked={value === l.key} className={value === l.key ? 'on' : ''} title={l.blurb} onClick={() => onChange(l.key)}>
+          <span className="bars3" aria-hidden>{[0, 1, 2].map((k) => <i key={k} className={k <= LEVELS.indexOf(l) ? 'full' : ''} />)}</span>{l.label}
+        </button>
       ))}
     </div>
   );
@@ -240,6 +267,17 @@ export function Modal({ title, onClose, children }: { title: string; onClose: ()
 
 export function OfflineNote({ error }: { error?: string }) {
   return <p className="fine">{error ? `${error}. ` : ''}Answered by the offline tutor (built-in course content), not Claude.</p>;
+}
+
+/** An on/off switch (a checkbox with role="switch"), for settings that flip something on or off. */
+export function Switch({ checked, onChange, children, disabled }: { checked: boolean; onChange: (v: boolean) => void; children: ReactNode; disabled?: boolean }) {
+  return (
+    <label className="switch">
+      <input type="checkbox" role="switch" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
+      <span className="track" aria-hidden><span className="knob" /></span>
+      <span>{children}</span>
+    </label>
+  );
 }
 
 /** A small "?" that opens a short explanation. Escape or a second click closes it. */

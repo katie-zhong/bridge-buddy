@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { api, go, stamp, useAsync, Tutor, LevelDial, Modal, OfflineNote, ReadAloud, Recognition, Toggle, SPEEDS, type Home, type Lecture, type Level, type Mark, type Post, type Segment, type Speed } from './ui';
-import { PlankIcon } from './Troll';
+import { api, go, stamp, useAsync, Tutor, LevelDial, Modal, OfflineNote, ReadAloud, Recognition, Toggle, SPEEDS, type Home, type Lecture, type Level, type Mark, type Plank, type Post, type ReadWrite, type Segment, type Speed } from './ui';
+import { ReadWritePanel } from './ReadWrite';
+import { PlankIcon, Troll, type PlankState } from './Troll';
 
-interface Data { lecture: Lecture; segments: Segment[]; marks: Mark[]; notes: { body: string; summary: string | null }; posts: Post[] }
+interface Data { lecture: Lecture; segments: Segment[]; marks: Mark[]; notes: { body: string; summary: string | null }; posts: Post[]; readwrite: ReadWrite }
 type Mode = 'recorded' | 'replay' | 'live';
 const REPLAY_MS = 3800;
 
@@ -26,7 +27,7 @@ export function NewLecture() {
           <label>Title<input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. PSYC 100, Lecture 7" /></label>
           <div className="choice">
             <h3>Record it live</h3>
-            <p className="muted">Noor listens through your microphone and writes the transcript as the lecture happens. {Recognition ? '' : 'Your browser does not support live transcription; Chrome or Edge do.'}</p>
+            <p className="muted">Norbu listens through your microphone and writes the transcript as the lecture happens. {Recognition ? '' : 'Your browser does not support live transcription; Chrome or Edge do.'}</p>
             <button className="primary" disabled={!Recognition} onClick={() => create(false)}>Start a live lecture</button>
           </div>
           <div className="choice">
@@ -60,6 +61,8 @@ export function LectureView({ id, home, startAt, reload, toast }: { id: string; 
   const [speedPick, setSpeedPick] = useState<Speed>(user.settings.speed || 1);
   const speed: Speed = user.settings.replaySpeed ? speedPick : 1;
   const [word, setWord] = useState(0);
+  const [say, setSay] = useState(''); // Norbu's speech bubble in the side panel
+  useEffect(() => { if (!say) return; const t = setTimeout(() => setSay(''), 6000); return () => clearTimeout(t); }, [say]);
   const chooseSpeed = (v: Speed) => { setSpeedPick(v); api('/me', 'PATCH', { settings: { speed: v } }).catch(() => { /* keeps working for this visit */ }); };
   const rec = useRef<any>(null);
   const liveStart = useRef(0);
@@ -133,7 +136,7 @@ export function LectureView({ id, home, startAt, reload, toast }: { id: string; 
       setInterim((pending.current.text + ' ' + tail).trim());
     };
     r.onend = () => { if (rec.current === r) { try { r.start(); } catch { /* already running */ } } };
-    r.onerror = (e: any) => { if (e.error === 'not-allowed') { toast('Noor needs microphone permission to transcribe.'); stopLive(); } };
+    r.onerror = (e: any) => { if (e.error === 'not-allowed') { toast('Bridgeway needs microphone permission to transcribe.'); stopLive(); } };
     rec.current = r;
     r.start();
     setMode('live');
@@ -152,7 +155,8 @@ export function LectureView({ id, home, startAt, reload, toast }: { id: string; 
     const seg = target;
     if (!seg || !data) return toast(live ? 'Nothing has been said yet.' : 'Pick a passage first by clicking it.');
     if (k === 'flag') {
-      toast(`Flagged at ${stamp(seg.t_start)}. Keep listening, I'll hold your place.`);
+      const msg = `Flagged at ${stamp(seg.t_start)}. I'll keep it for later.`;
+      if (user.settings.focus) toast(msg); else setSay(msg);
       const m = await api<Mark>('/marks', 'POST', { lecture_id: id, segment_id: seg.id, kind: 'flag' });
       update({ marks: [...(dataRef.current?.marks || []), m] });
     } else {
@@ -183,6 +187,15 @@ export function LectureView({ id, home, startAt, reload, toast }: { id: string; 
   if (!data) return <main className="page"><p className="muted">Loading…</p></main>;
 
   const marksFor = (segId: string) => data.marks.filter((m) => m.segment_id === segId);
+  const lecturePlanks = home.planks.filter((p) => p.lecture_id === id);
+  const conceptAt = (segId: string) => data.segments.find((x) => x.id === segId)?.concept;
+  // A passage's colour: red where you flagged it, then the plank's state once it is mended.
+  const segState = (s: Segment, ms: Mark[]): PlankState | null => {
+    if (ms.some((m) => m.status === 'open' && m.kind !== 'comment')) return 'gap';
+    if (!ms.some((m) => m.status === 'repaired')) return null;
+    const st = lecturePlanks.find((p) => p.concept === s.concept)?.state;
+    return st === 'proven' ? 'proven' : 'mended';
+  };
   const openMarks = data.marks.filter((m) => m.status === 'open' && m.kind !== 'comment');
   const patchMark = async (m: Mark, status: Mark['status']) => { await api(`/marks/${m.id}`, 'PATCH', { status }); update({ marks: data.marks.map((x) => (x.id === m.id ? { ...x, status } : x)) }); reload(); };
   const removeMark = async (m: Mark) => { await api(`/marks/${m.id}`, 'DELETE'); update({ marks: data.marks.filter((x) => x.id !== m.id) }); reload(); };
@@ -191,7 +204,7 @@ export function LectureView({ id, home, startAt, reload, toast }: { id: string; 
   return (
     <main className={`lecture ${user.settings.focus ? 'focus' : ''} ${live ? 'is-live' : ''}`}>
       <header className="lecthead">
-        <button className="ghost" onClick={() => go('/')}>‹ Bridge</button>
+        <button className="ghost iconbtn" onClick={() => go('/')} aria-label="Back to the bridge" title="Back to the bridge">‹</button>
         <div>
           <h1>{data.lecture.title}</h1>
           <p className="muted">
@@ -199,6 +212,7 @@ export function LectureView({ id, home, startAt, reload, toast }: { id: string; 
             {segments.length ? ` · ${stamp(segments[segments.length - 1].t_end)}` : ''}
           </p>
         </div>
+        <Timeline segments={data.segments} planks={lecturePlanks} now={target?.t_start ?? (live ? segments[segments.length - 1]?.t_start : undefined)} onTime={jump} />
         {user.settings.replaySpeed && data.lecture.live_demo ? (
           <div className="speed"><span id="speed-label">Speed</span>
             <div className="dial" role="radiogroup" aria-labelledby="speed-label">
@@ -221,7 +235,7 @@ export function LectureView({ id, home, startAt, reload, toast }: { id: string; 
             const ms = marksFor(s.id);
             const current = live ? i === segments.length - 1 : s.id === selected;
             return (
-              <article key={s.id} id={`seg-${s.id}`} className={`seg ${current ? 'current' : ''} ${ms.some((m) => m.status === 'open' && m.kind !== 'comment') ? 'has-gap' : ''}`}>
+              <article key={s.id} id={`seg-${s.id}`} className={`seg ${current ? 'current' : ''} ${segState(s, ms) ? `is-${segState(s, ms)}` : ''}`}>
                 <button className="time" onClick={() => setSelected(s.id === selected ? null : s.id)} aria-pressed={s.id === selected} title="Select this passage">{stamp(s.t_start)}</button>
                 <div>
                   <p onClick={() => !live && setSelected(s.id)}>
@@ -233,10 +247,11 @@ export function LectureView({ id, home, startAt, reload, toast }: { id: string; 
                     <MarkChip key={m.id} mark={m} open={expanded.has(m.id)} onToggle={() => toggle(m.id)} onTime={jump} onResolve={() => patchMark(m, 'resolved')} onDelete={() => removeMark(m)} />
                   ))}
                 </div>
+                <span className="segstate">{segState(s, ms) === 'gap' ? <FlagIcon label="Flagged" /> : segState(s, ms) ? <PlankIcon state={segState(s, ms) as PlankState} size={26} /> : null}</span>
               </article>
             );
           })}
-          {interim && <article className="seg current interim"><span className="time">…</span><div><p>{interim}</p></div></article>}
+          {interim && <article className="seg current interim"><span className="time">…</span><div><p>{interim}</p></div><span /></article>}
         </section>
 
         <aside className="side">
@@ -248,35 +263,38 @@ export function LectureView({ id, home, startAt, reload, toast }: { id: string; 
           {tab === 'notes' && <Notes id={id} data={data} update={update} onTime={jump} toast={toast} />}
           {tab === 'planks' && (
             <div className="pad">
-              {!openMarks.length && <p className="muted">No gaps in this lecture. Press <kbd>F</kbd> whenever you lose the thread.</p>}
-              <ul className="todo">
-                {openMarks.map((m) => {
-                  const seg = data.segments.find((s) => s.id === m.segment_id)!;
+              {!lecturePlanks.length && <p className="muted">No ideas in this lecture yet.</p>}
+              <ul className="plankrows">
+                {lecturePlanks.map((p) => {
+                  const gapMark = p.state === 'gap' ? openMarks.find((m) => conceptAt(m.segment_id) === p.concept) : undefined;
                   return (
-                    <li key={m.id}><button className="row" onClick={() => go(`/repair/${m.id}`)}>
-                      <PlankIcon state="gap" /><span className="tag gap">{stamp(seg.t_start)}</span>
-                      <span><strong>{m.body || seg.text.slice(0, 60) + '…'}</strong><small>Mend this plank</small></span><span className="chev">›</span>
-                    </button></li>
+                    <li key={p.concept} className={p.state === 'gap' ? 'gap' : ''}>
+                      <PlankIcon state={p.state} size={40} />
+                      <button className="link plain" onClick={() => jump(p.t_start)}>{p.title}</button>
+                      {gapMark && <button className="primary small" onClick={() => go(`/repair/${gapMark.id}`)}>Mend</button>}
+                    </li>
                   );
                 })}
               </ul>
             </div>
           )}
           {tab === 'class' && <ClassTalk id={id} data={data} update={update} target={target} personal={!!data.lecture.owner_id} onTime={jump} />}
+          {say && <div className="norbusays" role="status"><Troll size={56} mood="think" /><p>{say}</p></div>}
         </aside>
       </div>
 
       <footer className="dock">
         <button className="flagbtn" onClick={() => addMark('flag')} title="Mark this moment and keep listening (F)">
-          <span aria-hidden>⚑</span> I'm lost here <kbd>F</kbd>
+          <FlagIcon /> I'm lost here <kbd>F</kbd>
         </button>
         <form className="ask" onSubmit={(e) => { e.preventDefault(); if (text.trim()) addMark(kind, text.trim()); }}>
           <select value={kind} onChange={(e) => setKind(e.target.value as any)} aria-label="What to add">
-            <option value="question">Ask Noor</option>
+            <option value="question">Ask Norbu</option>
             <option value="comment">Note to self</option>
           </select>
+          <span className="askicon" aria-hidden><Troll size={26} /></span>
           <input value={text} onChange={(e) => setText(e.target.value)}
-            placeholder={target ? (kind === 'question' ? `Ask about ${stamp(target.t_start)}. No need to explain the context.` : `Add a note at ${stamp(target.t_start)}`) : 'Click a passage, then ask about it'} />
+            placeholder={target ? (kind === 'question' ? `Ask about ${stamp(target.t_start)}…` : `Note at ${stamp(target.t_start)}…`) : 'Click a passage, then ask'} />
           <button className="primary" disabled={busy || !text.trim()}>{busy ? 'Thinking…' : kind === 'question' ? 'Ask' : 'Add'}</button>
         </form>
         {kind === 'question' && <LevelDial value={level} onChange={setLevel} />}
@@ -314,6 +332,7 @@ function Notes({ id, data, update, onTime, toast }: { id: string; data: Data; up
   const [body, setBody] = useState(data.notes.body || '');
   const [busy, setBusy] = useState('');
   const [offline, setOffline] = useState<string | null>(null);
+  const [rwOpen, setRwOpen] = useState(false);
   const first = useRef(true);
   useEffect(() => {
     if (first.current) { first.current = false; return; }
@@ -348,7 +367,19 @@ function Notes({ id, data, update, onTime, toast }: { id: string; data: Data; up
       <div className="actions">
         <button className="ghost small" disabled={!!busy} onClick={summarise}>{busy === 'summary' ? 'Writing…' : data.notes.summary ? 'Rewrite summary' : 'Write me a summary'}</button>
         <button className="ghost small" disabled={!!busy} onClick={cards}>{busy === 'cards' ? 'Making…' : 'Make flashcards'}</button>
+        {data.readwrite.licensed && <button className="ghost small rwopen" onClick={() => setRwOpen(true)}><span className="logo rw" aria-hidden>R</span> Open in Read&amp;Write</button>}
       </div>
+      {rwOpen && (
+        <ReadWritePanel lectureId={id} rw={data.readwrite} onClose={() => setRwOpen(false)}
+          parts={[
+            ...(data.notes.summary ? [{ title: 'Summary', text: data.notes.summary }] : []),
+            ...(mended.length ? [{ title: 'From mended planks', text: mended.map((m) => m.note_line).join(' ') }] : []),
+            ...(body.trim() ? [{ title: 'My notes', text: body }] : []),
+          ]}
+          onSaved={(highlights) => update({ readwrite: { licensed: true, highlights } })}
+          onAddToNotes={(t) => setBody((b) => `${b.trim()}${b.trim() ? '\n\n' : ''}${t}`)}
+        />
+      )}
       {data.notes.summary && (
         <div className="summary">
           <div className="between"><h3>Summary</h3><ReadAloud text={data.notes.summary} /></div>
@@ -393,6 +424,31 @@ function ClassTalk({ id, data, update, target, personal, onTime }: { id: string;
           <button className="primary small" disabled={!body.trim()}>Post</button>
         </div>
       </form>
+    </div>
+  );
+}
+
+function FlagIcon({ label }: { label?: string }) {
+  return (
+    <svg className="flagicon" viewBox="0 0 20 20" width="20" height="20" role={label ? 'img' : undefined} aria-label={label} aria-hidden={label ? undefined : true}>
+      <path d="M5 2v16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /><path d="M6 3h10l-2.5 3.5L16 10H6z" fill="currentColor" />
+    </svg>
+  );
+}
+
+/** The lecture as a line: a dot per idea that is not plain (red missing, amber patched, green proven), and where you are. */
+function Timeline({ segments, planks, now, onTime }: { segments: Segment[]; planks: Plank[]; now?: number; onTime: (t: number) => void }) {
+  const end = segments[segments.length - 1]?.t_end || 1;
+  const pct = (t: number) => `${Math.min(100, (100 * t) / end)}%`;
+  const WORD: Record<PlankState, string> = { gap: 'missing', mended: 'patched', proven: 'proven', plain: 'sound' };
+  return (
+    <div className="timeline" role="group" aria-label="Where your planks are in this lecture">
+      <div className="track"><i style={{ width: now == null ? 0 : pct(now) }} /></div>
+      {planks.filter((p) => p.state !== 'plain').map((p) => (
+        <button key={p.concept} className={`dot ${p.state}`} style={{ left: pct(p.t_start) }} onClick={() => onTime(p.t_start)}
+          aria-label={`${p.title}, ${WORD[p.state]}, at ${stamp(p.t_start)}`} title={`${p.title} · ${stamp(p.t_start)}`} />
+      ))}
+      {now != null && <span className="here" style={{ left: pct(now) }} aria-hidden />}
     </div>
   );
 }

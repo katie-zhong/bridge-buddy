@@ -4,9 +4,9 @@ import { PlankIcon, Troll, type Mood } from './Troll';
 
 const TOUR: { title: string; body: string; mood: Mood; plank: 'plain' | 'gap' | 'mended' | 'proven'; key?: string }[] = [
   { title: 'This is your bridge', body: 'Every idea in your course is one plank. Your bridge leads to the next exam, and it starts out whole.', mood: 'idle', plank: 'plain' },
-  { title: 'Lost in a lecture? Press F', body: 'Noor marks the exact moment and you keep listening. That idea becomes a missing plank. You can also type a quick question, with no need to explain the context.', mood: 'think', plank: 'gap', key: 'F' },
-  { title: 'Later, mend the plank', body: 'Noor shows what was said, explains it as a hint, a worked example or a full walkthrough, then asks you a riddle. Answer it in your own words.', mood: 'idle', plank: 'mended' },
-  { title: 'A week later, prove it', body: 'Noor asks once more after seven days. Still right? The plank turns green for good. That is what counts here, not how often you log in.', mood: 'happy', plank: 'proven' },
+  { title: 'Lost in a lecture? Press F', body: 'Norbu marks the exact moment and you keep listening. That idea becomes a missing plank. You can also type a quick question, with no need to explain the context.', mood: 'think', plank: 'gap', key: 'F' },
+  { title: 'Later, mend the plank', body: 'Norbu shows what was said, explains it as a hint, a worked example or a full walkthrough, then asks you a riddle. Answer it in your own words.', mood: 'idle', plank: 'mended' },
+  { title: 'A week later, prove it', body: 'Norbu asks once more after seven days. Still right? The plank turns green for good. That is what counts here, not how often you log in.', mood: 'happy', plank: 'proven' },
 ];
 
 /** First visit: ask what gets in the way, then a four-step tour of the core loop. */
@@ -31,8 +31,8 @@ export function Welcome({ home, reload }: { home: Home; reload: () => void }) {
   if (step === 0) {
     return (
       <main className="welcome">
-        <Troll size={110} mood="happy" />
-        <h1>Nice to meet you, {home.user.name}. I'm Noor.</h1>
+        <Troll size={110} />
+        <h1>Nice to meet you, {home.user.name}. I'm Norbu, your Bridgeway buddy.</h1>
         <p className="lede">First, what gets in the way when you study? Pick any that fit. You don't need a diagnosis or the right word for it, and you can change this later.</p>
         <div className="chips center">
           {home.struggles.map((s) => {

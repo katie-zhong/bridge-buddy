@@ -1,11 +1,11 @@
 ---
-name: noor-design
-description: Noor's visual and copy style. Use before designing, mocking up or changing any UI in src/ (screens, styles.css, Noor the troll, the bridge and planks, icons, onboarding copy), or when asked for UI prototypes or mockups.
+name: bridgeway-design
+description: Bridgeway's visual and copy style. Use before designing, mocking up or changing any UI in src/ (screens, styles.css, Norbu the troll, the bridge and planks, icons, onboarding copy), or when asked for UI prototypes or mockups.
 ---
 
-# Noor design guide
+# Bridgeway design guide
 
-Noor is for first-year students, many with dyslexia, ADHD, dysgraphia or dyscalculia. The look
+Bridgeway is for first-year students, many with dyslexia, ADHD, dysgraphia or dyscalculia. The look
 is **minimal, readable and slightly playful but professional**: a flat, painterly indie-game
 illustration style on top of a calm, tidy app. When a choice is unclear, pick the one that is
 easier to read.
@@ -14,7 +14,7 @@ easier to read.
 
 - **Painterly, flat assets.** Illustrations are flat shapes with watercolour edges and pigment
   grain. Use the shared SVG filters from `PaintDefs` in `src/Troll.tsx` (rendered once in
-  `main.tsx`): `filter="url(#paint)"` for small shapes (planks, Noor, signs),
+  `main.tsx`): `filter="url(#paint)"` for small shapes (planks, Norbu, signs),
   `filter="url(#paint-wide)"` for scenery. Shade with a lighter and a deeper wash of the same
   hue (light from the top left), not gradients-on-everything.
 - **No dark outlines.** No black or ink strokes around shapes, cards, buttons or chips. Separate
@@ -43,10 +43,11 @@ Every idea taught is one **wooden plank** on the bridge to the next exam. Draw p
 Repair words: flag → **missing plank** → **mend / patch** → **prove**. Shape carries the state as
 well as colour (hole, batten, tick), so it never depends on colour alone.
 
-## Noor the troll
+## Norbu the troll
 
-`TrollArt` in `src/Troll.tsx`: small furry troll, tall ears, toothy grin, **one snaggletooth**
-poking up over the lip, no outlines. Moods: `idle`, `happy`, `think`. Keep the silhouette; add
+`TrollArt` in `src/Troll.tsx`: small furry troll, tall ears, no outlines. Default (`idle`) is a
+**closed smile with one tooth**; `think` is a flat mouth; `happy` is the open toothy grin and is
+used **only when a riddle or recall is answered well** (not for greetings or the home screen). Keep the silhouette; add
 new moods rather than new characters. The face (eyes, mouth) stays unfiltered and high-contrast.
 
 ## Copy and layout
@@ -55,8 +56,11 @@ new moods rather than new characters. The face (eyes, mouth) stays unfiltered an
   behind a `WhyTip` ("?") from `ui.tsx`: at most two short lines, **Why** then **How**.
 - Plain words, short sentences, sentence case. No diagnoses, no guilt about streaks.
 - Demo data is always labelled as demo data.
-- Navigation: Bridge and Practice as tabs; Settings is the gear at the top right; What helps
-  lives inside Settings.
+- Names: the app is **Bridgeway**; the troll who speaks, explains and asks riddles is **Norbu**.
+- Navigation: Bridge, Practice and Community as tabs; Settings is the gear at the top right.
+  Profile (struggles + strategy checkboxes), What helps and Connected tools live inside Settings.
+- On/off settings use `Switch` (role="switch"); picking several items uses checkboxes.
+- Third-party tools (Brightspace, Teams, Read&Write) are labelled by name, and mock data as demo.
 
 ## Accessibility checklist (before finishing)
 

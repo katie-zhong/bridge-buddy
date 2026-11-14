@@ -21,6 +21,8 @@ create table if not exists notes(user_id text, lecture_id text, body text defaul
 create table if not exists deadlines(id text primary key, course text, title text, due_at int, source text, kind text);
 create table if not exists posts(id text primary key, lecture_id text, segment_id text, user_id text, anonymous int, body text, parent_id text, created_at int);
 create table if not exists strategy_use(user_id text, strategy_id text, active int default 1, helpful int, primary key(user_id, strategy_id));
+create table if not exists accommodations(user_id text primary key, readwrite int default 0, source text);
+create table if not exists rw_highlights(user_id text, lecture_id text, data text default '{}', primary key(user_id, lecture_id));
 `;
 
 // Small deterministic generator so the demo cohort is the same on every machine.

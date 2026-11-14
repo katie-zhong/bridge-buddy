@@ -4,8 +4,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openDb, insertSegments, now, uid, DAY } from './db.mjs';
 import * as ai from './ai.mjs';
-import { CONCEPTS, STRATEGIES, STRUGGLES } from './content.mjs';
-import { parseTranscript } from './integrations.mjs';
+import { CONCEPTS, STRATEGIES, STRUGGLES, SYLLABUS } from './content.mjs';
+import { parseSyllabus, parseTranscript } from './integrations.mjs';
 import { z } from 'zod';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -13,6 +13,11 @@ const MIN_GROUP = 5; // never show an aggregate about fewer than this many stude
 const BOXES = [0, 1, 3, 7, 14];
 
 // Everything a student may change about their own profile. Unknown keys are rejected.
+// Read&Write highlighter colours, each with a fixed meaning so colour is never the only cue.
+export const RW_COLOURS = ['key', 'term', 'example', 'question'];
+const RwPut = z.object({ highlights: z.record(z.string().min(1).max(600), z.enum(RW_COLOURS)).refine((h) => Object.keys(h).length <= 400, 'Too many highlights') }).strict();
+const RwDemo = z.object({ licensed: z.boolean() }).strict();
+
 const MePatch = z.object({
   settings: z.object({
     font: z.enum(['atkinson', 'lexend', 'system']), size: z.number().min(0.8).max(1.6), spacing: z.number().min(1.2).max(2.4),
@@ -36,6 +41,7 @@ export function createHandler(db = openDb()) {
   const fail = (status, message) => Object.assign(new Error(message), { status });
 
   const pub = (u) => ({ id: u.id, name: u.name, role: u.role, settings: JSON.parse(u.settings || '{}'), struggles: JSON.parse(u.struggles || '[]') });
+  const rwLicensed = (u) => !!one('select readwrite from accommodations where user_id=?', u.id)?.readwrite;
   const shares = (u) => JSON.parse(u.settings || '{}').shareAggregates !== false;
   const lectureFor = (id, user) => {
     const l = one('select * from lectures where id=?', id);
@@ -161,12 +167,14 @@ export function createHandler(db = openDb()) {
     notes: q('select * from notes where user_id=?', user.id),
     posts: q('select * from posts where user_id=?', user.id),
     strategies: q('select * from strategy_use where user_id=?', user.id),
+    accommodations: q('select readwrite, source from accommodations where user_id=?', user.id),
+    readwrite_highlights: q('select lecture_id, data from rw_highlights where user_id=?', user.id),
     lectures: q('select * from lectures where owner_id=?', user.id),
   }));
 
   on('DELETE', '/api/me', ({ user }) => {
     for (const l of q('select id from lectures where owner_id=?', user.id)) run('delete from segments where lecture_id=?', l.id);
-    for (const t of ['marks', 'recalls', 'cards', 'notes', 'posts', 'strategy_use']) run(`delete from ${t} where user_id=?`, user.id);
+    for (const t of ['marks', 'recalls', 'cards', 'notes', 'posts', 'strategy_use', 'accommodations', 'rw_highlights']) run(`delete from ${t} where user_id=?`, user.id);
     run('delete from lectures where owner_id=?', user.id);
     run('delete from users where id=?', user.id);
     return { deleted: true };
@@ -181,7 +189,40 @@ export function createHandler(db = openDb()) {
       marks: q('select * from marks where user_id=? and lecture_id=? order by created_at', user.id, lecture.id),
       notes: one('select * from notes where user_id=? and lecture_id=?', user.id, lecture.id) || { body: '', summary: null },
       posts: posts(lecture.id, user),
+      readwrite: rwLicensed(user)
+        ? { licensed: true, highlights: JSON.parse(one('select data from rw_highlights where user_id=? and lecture_id=?', user.id, lecture.id)?.data || '{}') }
+        : { licensed: false, highlights: {} },
     };
+  });
+
+  // ---- Read&Write (Texthelp): only for students whose registered accommodations include it ----
+  // A licence is never visible to instructors or other students. In this build the licence is
+  // simulated per student from Settings (labelled demo); the pilot reads it from Accessibility Services.
+  on('GET', '/api/integrations', ({ user }) => ({
+    brightspace: { connected: true, demo: true },
+    readwrite: user.role === 'student' ? { licensed: rwLicensed(user), source: one('select source from accommodations where user_id=?', user.id)?.source ?? null } : null,
+  }));
+  on('POST', '/api/integrations/readwrite/demo', ({ user, body }) => {
+    if (user.role !== 'student') throw fail(403, 'Read&Write licences are for students');
+    const parsed = RwDemo.safeParse(body);
+    if (!parsed.success) throw fail(400, 'Say whether to simulate a licence');
+    run('insert into accommodations(user_id,readwrite,source) values(?,?,?) on conflict(user_id) do update set readwrite=excluded.readwrite, source=excluded.source',
+      user.id, parsed.data.licensed ? 1 : 0, parsed.data.licensed ? 'Accessibility Services (demo)' : null);
+    return { licensed: rwLicensed(user) };
+  });
+  on('PUT', '/api/lectures/:id/readwrite', ({ user, params, body }) => {
+    const lecture = lectureFor(params.id, user);
+    if (!rwLicensed(user)) throw fail(403, 'Read&Write needs a licence through your registered accommodations');
+    const parsed = RwPut.safeParse(body);
+    if (!parsed.success) throw fail(400, 'Those highlights are not valid');
+    run('insert into rw_highlights(user_id,lecture_id,data) values(?,?,?) on conflict(user_id,lecture_id) do update set data=excluded.data', user.id, lecture.id, JSON.stringify(parsed.data.highlights));
+    return { ok: true };
+  });
+
+  // ---- course people, pulled from the Brightspace syllabus ---------------
+  on('GET', '/api/course', () => {
+    const course = one('select * from courses limit 1');
+    return { code: course.code, title: course.title, source: 'Brightspace', demo: true, synced_at: now(), ...parseSyllabus(SYLLABUS) };
   });
 
   on('POST', '/api/lectures', ({ user, body }) => {
@@ -474,5 +515,5 @@ export const createApp = (db) => http.createServer(createHandler(db));
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const port = Number(process.env.PORT || 8787);
-  createApp().listen(port, () => console.log(`Noor server on http://localhost:${port}  (tutor: ${ai.aiMode()})`));
+  createApp().listen(port, () => console.log(`Bridgeway server on http://localhost:${port}  (tutor: ${ai.aiMode()})`));
 }

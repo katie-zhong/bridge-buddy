@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { openDb } from './db.mjs';
 import { createApp } from './index.mjs';
-import { parseTranscript } from './integrations.mjs';
+import { parseSyllabus, parseTranscript } from './integrations.mjs';
 
 const server = createApp(openDb(':memory:'));
 await new Promise((r) => server.listen(0, r));
@@ -102,4 +102,32 @@ test('picking a struggle switches on its starter strategy once, and bad settings
   assert.equal(ok.data.settings.speed, 1.5);
   assert.equal((await call(t, '/me', 'PATCH', { settings: { speed: 9 } })).status, 400);
   assert.equal((await call(t, '/me', 'PATCH', { settings: { isAdmin: true } })).status, 400);
+});
+
+test('syllabus pull: team, office hours with Teams links, and who to contact', async () => {
+  const t = await login('Rin');
+  const { data } = await call(t, '/course');
+  assert.equal(data.source, 'Brightspace');
+  assert.deepEqual(data.team.map((p) => p.role), ['instructor', 'ta', 'isa']);
+  assert.ok(data.office_hours.length >= 3 && data.office_hours.every((o) => o.teams_url.startsWith('https://teams.microsoft.com/')));
+  assert.equal(data.routing.find((r) => /extensions/i.test(r.topic)).role, 'isa');
+  // The parser skips lines it does not understand instead of guessing.
+  const odd = parseSyllabus('TEACHING TEAM\nLibrarian: Sam <s@x.example>\nTeaching assistant: Ana <ana@x.example>\n\nOFFICE HOURS\nAna: Someday 10:00-11:00\nAna: Monday 9:00-10:00');
+  assert.deepEqual(odd.team.map((p) => p.name), ['Ana']);
+  assert.equal(odd.office_hours.length, 1);
+  assert.equal(odd.office_hours[0].teams_url, null);
+});
+
+test('Read&Write: only a licensed student can save highlights, and only valid ones', async () => {
+  const t = await login('Kai');
+  const lec = 'econ101-l4';
+  assert.equal((await call(t, `/lectures/${lec}`)).data.readwrite.licensed, false);
+  assert.equal((await call(t, `/lectures/${lec}/readwrite`, 'PUT', { highlights: { 'Demand slopes down.': 'key' } })).status, 403);
+  await call(t, '/integrations/readwrite/demo', 'POST', { licensed: true });
+  assert.equal((await call(t, '/integrations')).data.readwrite.licensed, true);
+  assert.equal((await call(t, `/lectures/${lec}/readwrite`, 'PUT', { highlights: { 'Demand slopes down.': 'key' } })).status, 200);
+  assert.deepEqual((await call(t, `/lectures/${lec}`)).data.readwrite.highlights, { 'Demand slopes down.': 'key' });
+  assert.equal((await call(t, `/lectures/${lec}/readwrite`, 'PUT', { highlights: { x: 'purple' } })).status, 400);
+  const teacher = await login('Prof', 'instructor');
+  assert.equal((await call(teacher, '/integrations/readwrite/demo', 'POST', { licensed: true })).status, 403);
 });

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { api, go, stamp, useAsync, AnswerBox, LevelDial, Modal, OfflineNote, ReadAloud, Tutor, type Level, type Mark, type User } from './ui';
 import { Troll } from './Troll';
 
-/** Mend one plank: see the source, get an explanation at the level you choose, then answer Noor's riddle. */
+/** Mend one plank: see the source, get an explanation at the level you choose, then answer Norbu's riddle. */
 export function Repair({ id, user, onClose }: { id: string; user: User; onClose: () => void }) {
   const mark = useAsync<Mark>(() => api(`/marks/${id}`), [id]);
   const [level, setLevel] = useState<Level>(user.settings.level || 'example');
@@ -50,20 +50,21 @@ export function Repair({ id, user, onClose }: { id: string; user: User; onClose:
           </section>
 
           {m.status === 'repaired' ? (
-            <section className="done"><Troll mood="happy" size={72} /><p><strong>Already mended.</strong> {m.note_line}</p></section>
+            <section className="done"><Troll size={72} /><p><strong>Already mended.</strong> {m.note_line}</p></section>
           ) : (
             <>
               <section>
                 <div className="between wrap">
-                  <p className="step">2 · Noor explains</p>
+                  <p className="step">2 · Norbu explains</p>
                   <LevelDial value={level} onChange={(l) => { setLevel(l); load(l); }} />
                 </div>
-                {busy === 'explain' && <p className="muted">Noor is thinking…</p>}
+                {busy === 'explain' && <p className="muted">Norbu is thinking…</p>}
                 {explain && busy !== 'explain' && (
                   <>
                     <Tutor text={explain.text} />
                     <ReadAloud text={explain.text} />
                     {explain.ai === 'offline' && <OfflineNote error={explain.ai_error} />}
+                    <p className="fine stuck">Still stuck? <button className="link" onClick={() => go(`/community?about=ta&mark=${id}`)}>Email your TA about this moment</button></p>
                   </>
                 )}
               </section>
