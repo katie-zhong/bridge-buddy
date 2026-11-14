@@ -28,7 +28,7 @@ The "bridge" metaphor: one plank per idea taught. States: plain → **gap** (fla
 
 | Area | Behaviour |
 |---|---|
-| Sign-in | First name + role (student / instructor). Stand-in for Microsoft Entra ID. |
+| Sign-in | First name + role (student / instructor). Stand-in for Microsoft Entra ID. Name and role are remembered in the browser and prefilled. **Demo mode** tickbox: name optional ("Guest"), skips the login screen on later visits, and silently signs back in as the same person if the server forgot the session (e.g. Vercel cold start). Signing out turns demo mode off. |
 | Bridge (home) | Planks per idea, open gaps, due recalls, streak, flashcards due, unified deadline list. |
 | Lecture | Timestamped transcript; flag (F); ask about the current moment without typing context; questions/flags collapse into the margin; mended ideas fold into one line of notes; per-lecture notes; AI summary; generate flashcards; discussion posts (optionally anonymous). |
 | Live | Replay the demo lecture "as if live"; record a real lecture with browser speech recognition (Chrome/Edge); paste or upload Panopto captions (.vtt/.srt). |

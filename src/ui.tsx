@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
+import { z } from 'zod';
 
 // ---- types -------------------------------------------------------------
 export type Level = 'hint' | 'example' | 'walkthrough';
@@ -32,14 +33,61 @@ export const session = {
   set token(v: string | null) { try { v ? localStorage.setItem('norbu-token', v) : localStorage.removeItem('norbu-token'); } catch { /* private mode */ } },
 };
 
-export async function api<T = any>(path: string, method = 'GET', body?: unknown): Promise<T> {
+// The name and role someone signed in with, kept in this browser. With `demo` on, NorBu signs
+// them in automatically (no login screen), and silently signs them in again if the server has
+// forgotten them (e.g. a Vercel cold start wiped the demo database).
+const Profile = z.object({
+  name: z.string().trim().min(1).max(40),
+  role: z.enum(['student', 'instructor']),
+  demo: z.boolean(),
+});
+export type Profile = z.infer<typeof Profile>;
+export const DEMO_NAME = 'Guest';
+export const profile = {
+  get(): Profile | null {
+    try {
+      const parsed = Profile.safeParse(JSON.parse(localStorage.getItem('norbu-profile') ?? 'null'));
+      return parsed.success ? parsed.data : null;
+    } catch { return null; }
+  },
+  set(p: Profile | null) {
+    try { p ? localStorage.setItem('norbu-profile', JSON.stringify(p)) : localStorage.removeItem('norbu-profile'); } catch { /* private mode */ }
+  },
+};
+
+async function request<T>(path: string, method: string, body: unknown): Promise<{ res: Response; data: T & { error?: string } }> {
   const res = await fetch('/api' + path, {
     method,
     headers: { 'content-type': 'application/json', ...(session.token ? { authorization: `Bearer ${session.token}` } : {}) },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const data = await res.json().catch(() => ({ error: 'The server did not answer. Is it running?' }));
-  if (res.status === 401 && session.token) { session.token = null; location.reload(); }
+  return { res, data };
+}
+
+/** Signs in with a name and role and stores the session token. Returns the new user. */
+export async function signIn(name: string, role: Profile['role']): Promise<User> {
+  const { res, data } = await request<{ token: string; user: User }>('/login', 'POST', { name, role });
+  if (!res.ok) throw new Error(data.error || 'Could not sign in');
+  session.token = data.token;
+  return data.user;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- existing call sites rely on the untyped default
+export async function api<T = any>(path: string, method = 'GET', body?: unknown): Promise<T> {
+  let { res, data } = await request<T>(path, method, body);
+  if (res.status === 401 && session.token && path !== '/login') {
+    const p = profile.get();
+    if (p?.demo) {
+      // Demo mode: the server lost our session. Sign in again as the same person and retry once.
+      session.token = null;
+      await signIn(p.name, p.role);
+      ({ res, data } = await request<T>(path, method, body));
+    } else {
+      session.token = null;
+      location.reload();
+    }
+  }
   if (!res.ok) throw new Error(data.error || 'Something went wrong');
   return data;
 }
