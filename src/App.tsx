@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
-import { api, go, session, profile, signIn, DEMO_NAME, useAsync, when, stamp, Switch, type Home, type User } from './ui';
-import { Bridge, PlankIcon, Troll } from './Troll';
+import { api, go, session, profile, signIn, DEMO_NAME, useAsync, when, stamp, Switch, type Home, type Mark, type User } from './ui';
+import { Bridge, PlankIcon, Troll, type PlankState } from './Troll';
 import { Welcome } from './Welcome';
 import { LectureView, NewLecture } from './Lecture';
 import { Repair } from './Repair';
 import { Practice } from './Practice';
-import { ForYou } from './Strategies';
-import { Community, OfficeHoursCard } from './Community';
+import { StrategyChips } from './Strategies';
+import { Community, OfficeHoursRow } from './Community';
 import { Instructor } from './Instructor';
 import { SettingsPage } from './Settings';
 
@@ -41,7 +41,7 @@ function Login({ onDone }: { onDone: () => void }) {
   };
   return (
     <main className="login">
-      <Troll size={150} mood="happy" />
+      <Troll size={150} />
       <h1>Bridgeway</h1>
       <p className="lede">Norbu, your Northbridge buddy, helps you flag what you miss in a lecture, keep listening, and mend the gap later.</p>
       <form onSubmit={submit} className="card">
@@ -83,86 +83,93 @@ function applyPrefs(u?: User) {
   root.dataset.calm = s.calm ? '1' : '';
 }
 
+const FlameIcon = () => <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden><path d="M10 2c1 4 6 6 6 11a6 6 0 0 1-12 0c0-3 2-4 3-6 0 2 1 3 2 3 0-3-1-5 1-8z" fill="#e2a43b" filter="url(#paint)" /></svg>;
+const CardsIcon = () => <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden><rect x="5" y="3" width="11" height="14" rx="2.5" fill="#8cc5c6" transform="rotate(10 10 10)" /><rect x="3" y="4" width="11" height="14" rx="2.5" fill="#4c9aa6" /></svg>;
+
 function Today({ home }: { home: Home }) {
   const { planks, streak, open, recalls, deadlines, course } = home;
   const now = Date.now() / 1000;
   const due = recalls.filter((r) => r.due_at <= now);
   const count = (s: string) => planks.filter((p) => p.state === s).length;
-  const mood = open.length ? 'think' : streak.today ? 'happy' : 'idle';
+  const mood = open.length ? 'think' : 'idle';
   const gaps = count('gap');
   const fresh = planks.every((p) => p.state === 'plain') && !recalls.length;
   const demo = home.lectures.find((l) => l.live_demo);
-  const line = gaps
-    ? `${gaps} ${gaps === 1 ? 'plank is' : 'planks are'} missing. Mend one and I'll stop staring.`
-    : due.length ? 'No gaps. But I have a riddle waiting for you.'
-    : planks.some((p) => p.state !== 'plain') ? 'Your bridge is holding. Nice work.'
-    : 'Open a lecture. Press F when you get lost. I\'ll remember where.';
+  const line = gaps ? `${gaps === 1 ? 'One plank needs' : `${gaps === 2 ? 'Two' : gaps} planks need`} you.`
+    : due.length ? 'A riddle is waiting.'
+    : fresh ? 'Press F when you get lost.' : 'Your bridge is holding.';
+  // The idea a flag belongs to: the plank of that lecture that starts at or before the flagged moment.
+  const ideaOf = (m: Mark) => [...planks].reverse().find((p) => p.lecture_id === m.lecture_id && p.t_start <= (m.t_start || 0))?.title;
+  const legend: [PlankState, string][] = [['gap', 'missing'], ['mended', 'patched'], ['proven', 'proven'], ['plain', 'sound']];
   return (
     <main className="page">
       <section className="hero card">
         <div className="herohead">
           <div>
-            <p className="eyebrow">{course.code} · {course.title}</p>
+            <p className="eyebrow">{course.code}</p>
             <h1>Hi {home.user.name}. {line}</h1>
           </div>
-          <div className={`streak ${streak.today ? 'lit' : ''}`} title="Days in a row with a riddle solved. Logging in does not count.">
-            <strong>{streak.days}</strong><span>day{streak.days === 1 ? '' : 's'} mending</span>
+          <div className="herochips">
+            <span className={`pill streak ${streak.today ? 'lit' : ''}`} title="Days in a row with a riddle solved. Logging in does not count."><FlameIcon />{streak.days} day{streak.days === 1 ? '' : 's'}</span>
+            {home.cards_due > 0 && <button className="pill cards" onClick={() => go('/practice')} title="Flashcards ready to review"><CardsIcon />{home.cards_due} card{home.cards_due === 1 ? '' : 's'}</button>}
           </div>
         </div>
         <Bridge planks={planks} examLabel={course.exam_label} examIn={when(course.exam_at)} mood={mood} />
-        <ul className="legend">
-          <li><PlankIcon state="gap" /><b>{count('gap')}</b> missing</li>
-          <li><PlankIcon state="mended" /><b>{count('mended')}</b> patched</li>
-          <li><PlankIcon state="proven" /><b>{count('proven')}</b> proven</li>
-          <li><PlankIcon state="plain" /><b>{count('plain')}</b> sound</li>
-        </ul>
+        <div className="between wrap legendrow">
+          <ul className="legend">
+            {legend.map(([st, word]) => <li key={st} title={word}><PlankIcon state={st} /><b>{count(st)}</b><span className="sr"> {word}</span></li>)}
+          </ul>
+          <span className="fine">Hover a plank to see the idea</span>
+        </div>
       </section>
 
       {fresh && demo && (
         <section className="card starthere">
-          <Troll size={72} mood="happy" />
+          <Troll size={72} />
           <div>
             <h2>Start here</h2>
-            <p>Sit in on today's lecture. Press <kbd>F</kbd> the moment you get lost, then come back and mend the plank.</p>
+            <p>Sit in on today's lecture. Press <kbd>F</kbd> when you get lost.</p>
             <button className="primary" onClick={() => go(`/lecture/${demo.id}`)}>Open {demo.title.split(':')[0]}</button>
           </div>
         </section>
       )}
 
-      <ForYou home={home} />
-      <OfficeHoursCard />
-
       <div className="cols">
         <section className="card">
           <h2>Today</h2>
-          {!open.length && !due.length && <p className="muted">Nothing to mend right now.</p>}
+          {!open.length && !due.length && <p className="muted">Nothing to mend.</p>}
           <ul className="todo">
-            {due.map((r) => (
-              <li key={r.id}><button className="row" onClick={() => go('/practice')}>
-                <span className="tag proven">Riddle</span><span><strong>Week-later check</strong><small>{r.lecture.split(':')[0]} · {stamp(r.t_start)}</small></span><span className="chev">›</span>
-              </button></li>
-            ))}
             {open.map((m) => (
-              <li key={m.id}><button className="row" onClick={() => go(`/repair/${m.id}`)}>
-                <span className="tag gap">{m.kind === 'question' ? 'Question' : 'Flag'}</span>
-                <span><strong>{m.body || `${(m.seg_text || '').slice(0, 64)}…`}</strong><small>{(m.lecture || '').split(':')[0]} · {stamp(m.t_start || 0)}</small></span><span className="chev">›</span>
-              </button></li>
+              <li key={m.id} className="row static">
+                <PlankIcon state="gap" />
+                <span><strong>{(m.kind === 'question' && m.body) || ideaOf(m) || `${(m.seg_text || '').slice(0, 48)}…`}</strong></span>
+                <span className="mono muted">{stamp(m.t_start || 0)}</span>
+                <button className="primary small" onClick={() => go(`/repair/${m.id}`)}>Mend</button>
+              </li>
+            ))}
+            {due.map((r) => (
+              <li key={r.id} className="row static">
+                <PlankIcon state="mended" />
+                <span><strong>Week-later riddle</strong></span>
+                <span className="mono muted">{stamp(r.t_start)}</span>
+                <button className="ghost small" onClick={() => go('/practice')}>Try</button>
+              </li>
             ))}
           </ul>
-          {home.cards_due > 0 && <button className="ghost" onClick={() => go('/practice')}>{home.cards_due} flashcard{home.cards_due === 1 ? '' : 's'} ready to review ›</button>}
+          <StrategyChips home={home} />
         </section>
 
         <section className="card">
           <h2>Coming up</h2>
           <ul className="todo">
+            <OfficeHoursRow />
             {deadlines.map((d) => (
               <li key={d.id} className="row static">
-                <span className={`tag ${d.due_at - now < 2.5 * 86400 ? 'soon' : ''}`}>{when(d.due_at)}</span>
-                <span><strong>{d.title}</strong><small>{d.course} · from {d.source}</small></span>
+                <span className={`tag day ${d.due_at - now < 2.5 * 86400 ? 'soon' : ''}`}>{when(d.due_at)}</span>
+                <span><strong>{d.title}{d.course !== course.code ? ` · ${d.course.split(' ')[0]}` : ''}</strong></span>
               </li>
             ))}
           </ul>
-          <p className="fine">Pulled into one list from Brightspace, course sites and your calendar.</p>
         </section>
       </div>
 
@@ -171,9 +178,8 @@ function Today({ home }: { home: Home }) {
         <ul className="todo">
           {home.lectures.map((l) => (
             <li key={l.id}><button className="row" onClick={() => go(`/lecture/${l.id}`)}>
-              <span className="tag">{l.source}</span>
-              <span><strong>{l.title}</strong><small>{when(l.held_at)} · {Math.round(((l.segments || 0) * 30) / 60)} min{l.live_demo ? ' · live replay available' : ''}</small></span>
-              {l.open ? <span className="tag gap">{l.open} to repair</span> : null}<span className="chev">›</span>
+              <span><strong>{l.title}</strong><small>{when(l.held_at)} · {Math.round(((l.segments || 0) * 30) / 60)} min</small></span>
+              {l.open ? <span className="gapcount" title={`${l.open} missing`}><PlankIcon state="gap" size={28} /><b>{l.open}</b><span className="sr"> missing</span></span> : null}<span className="chev">›</span>
             </button></li>
           ))}
         </ul>

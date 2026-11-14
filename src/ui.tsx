@@ -238,7 +238,9 @@ export function LevelDial({ value, onChange }: { value: Level; onChange: (l: Lev
   return (
     <div className="dial" role="radiogroup" aria-label="How much support">
       {LEVELS.map((l) => (
-        <button key={l.key} role="radio" aria-checked={value === l.key} className={value === l.key ? 'on' : ''} title={l.blurb} onClick={() => onChange(l.key)}>{l.label}</button>
+        <button key={l.key} role="radio" aria-checked={value === l.key} className={value === l.key ? 'on' : ''} title={l.blurb} onClick={() => onChange(l.key)}>
+          <span className="bars3" aria-hidden>{[0, 1, 2].map((k) => <i key={k} className={k <= LEVELS.indexOf(l) ? 'full' : ''} />)}</span>{l.label}
+        </button>
       ))}
     </div>
   );

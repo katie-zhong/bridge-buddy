@@ -45,8 +45,9 @@ well as colour (hole, batten, tick), so it never depends on colour alone.
 
 ## Norbu the troll
 
-`TrollArt` in `src/Troll.tsx`: small furry troll, tall ears, toothy grin, **one snaggletooth**
-poking up over the lip, no outlines. Moods: `idle`, `happy`, `think`. Keep the silhouette; add
+`TrollArt` in `src/Troll.tsx`: small furry troll, tall ears, no outlines. Default (`idle`) is a
+**closed smile with one tooth**; `think` is a flat mouth; `happy` is the open toothy grin and is
+used **only when a riddle or recall is answered well** (not for greetings or the home screen). Keep the silhouette; add
 new moods rather than new characters. The face (eyes, mouth) stays unfiltered and high-contrast.
 
 ## Copy and layout

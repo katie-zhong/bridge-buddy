@@ -61,7 +61,7 @@ when it was built; if a call fails, Bridgeway falls back to the offline tutor an
 
 | Area | What it does |
 |---|---|
-| Bridge (home) | One plank per idea taught. Dashed = gap you flagged, amber = mended, green = proven a week later. Deadlines from every source in one list. |
+| Bridge (home) | A painted stone arch, one wooden plank per idea: a dashed hole = gap you flagged, patched = mended, green with a tick = proven a week later. Today, Coming up (office hours + deadlines) and Lectures below. |
 | Lecture | Timestamped transcript. Press **F** to flag. Ask a question about the current moment without typing context. Questions and flags collapse into the margin; mended ones fold into one line of your notes. |
 | Live | "Sit in on it live" replays the demo lecture as if live. "Add a lecture → Record it live" transcribes a real lecture from your microphone (Chrome or Edge). You can also paste or upload a Panopto caption file (.vtt/.srt). |
 | Mend a plank | Source passage → explanation with a Hint / Worked example / Full walkthrough dial → riddle graded on understanding, not spelling. |

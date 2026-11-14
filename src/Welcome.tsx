@@ -31,7 +31,7 @@ export function Welcome({ home, reload }: { home: Home; reload: () => void }) {
   if (step === 0) {
     return (
       <main className="welcome">
-        <Troll size={110} mood="happy" />
+        <Troll size={110} />
         <h1>Nice to meet you, {home.user.name}. I'm Norbu, your Bridgeway buddy.</h1>
         <p className="lede">First, what gets in the way when you study? Pick any that fit. You don't need a diagnosis or the right word for it, and you can change this later.</p>
         <div className="chips center">

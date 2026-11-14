@@ -50,7 +50,7 @@ export function Repair({ id, user, onClose }: { id: string; user: User; onClose:
           </section>
 
           {m.status === 'repaired' ? (
-            <section className="done"><Troll mood="happy" size={72} /><p><strong>Already mended.</strong> {m.note_line}</p></section>
+            <section className="done"><Troll size={72} /><p><strong>Already mended.</strong> {m.note_line}</p></section>
           ) : (
             <>
               <section>

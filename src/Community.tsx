@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { api, go, mailto, nextSlot, stamp, useAsync, WhyTip, type Course, type Home, type Mark, type Role } from './ui';
+import { api, mailto, nextSlot, stamp, useAsync, WhyTip, type Course, type Home, type Mark, type Role } from './ui';
 
 const useCourse = () => useAsync<Course>(() => api('/course'), []);
 const time = (d: Date) => d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
@@ -19,25 +19,17 @@ function MailIcon() {
   return <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden><rect x="2" y="4" width="16" height="12" rx="3" fill="currentColor" opacity=".25" /><path d="M3 6l7 5 7-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>;
 }
 
-/** Bridge: the next office hours, straight from the syllabus. */
-export function OfficeHoursCard() {
+/** Bridge (inside Coming up): the next office hours, straight from the syllabus. */
+export function OfficeHoursRow() {
   const { data } = useCourse();
   if (!data?.office_hours.length) return null;
   const next = data.office_hours.map((o) => ({ ...o, at: nextSlot(o.day, o.start) })).sort((a, b) => +a.at - +b.at)[0];
   return (
-    <section className="card hours">
-      <div className="between wrap">
-        <div>
-          <p className="eyebrow">Next office hours</p>
-          <h2>{next.name} <span className="tag">{next.role ? ROLE_SHORT[next.role] : ''}</span></h2>
-          <p className="muted">{fmtSlot(next.at, next.end)}</p>
-        </div>
-        <div className="actions">
-          {next.teams_url && <a className={`btn ${soon(next.at) ? 'primary' : 'ghost'}`} href={next.teams_url} target="_blank" rel="noreferrer"><TeamsIcon /> Join on Teams</a>}
-          <button className="ghost" onClick={() => go('/community')}>Who to contact</button>
-        </div>
-      </div>
-    </section>
+    <li className="row static hoursrow">
+      <span className={`tag day ${soon(next.at) ? 'soon' : ''}`}>{next.at.toLocaleDateString(undefined, { weekday: 'short' })}</span>
+      <span><strong>Office hours · {next.name.replace(/^(Dr|Prof)\.?\s+/, '').split(' ').slice(-1)[0]}</strong><small>{time(next.at)}</small></span>
+      {next.teams_url && <a className="btn ghost small" href={next.teams_url} target="_blank" rel="noreferrer" aria-label={`Join ${next.name}'s office hours on Microsoft Teams`}><TeamsIcon /> Join</a>}
+    </li>
   );
 }
 

@@ -16,19 +16,18 @@ function Why({ s, struggles }: { s: Strategy; struggles: Struggles }) {
   );
 }
 
-/** Home: the strategies that are on for this student, picked from what they said during onboarding. */
-export function ForYou({ home }: { home: Home }) {
+/** Bridge (inside Today): the strategies that are on, as small chips with a "?" each. */
+export function StrategyChips({ home }: { home: Home }) {
   const { data } = useStrategies();
   if (home.user.settings.recs === false || !home.user.struggles.length) return null;
   const on = data?.strategies.filter((s) => s.active && home.user.struggles.includes(s.struggle)) || [];
   if (!on.length) return null;
   return (
-    <section className="card">
-      <div className="between"><h2>Strategies for you</h2><button className="link" onClick={() => go('/settings/profile')}>Change</button></div>
-      <ul className="foryou">
-        {on.map((s) => <li key={s.id}><span>{s.title}</span><Why s={s} struggles={home.struggles} /></li>)}
-      </ul>
-    </section>
+    <div className="stratchips">
+      <span className="fine">Using</span>
+      {on.map((s) => <span key={s.id} className="stratchip">{s.title}<Why s={s} struggles={home.struggles} /></span>)}
+      <button className="link fine" onClick={() => go('/settings/profile')}>Change</button>
+    </div>
   );
 }
 
