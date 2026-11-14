@@ -53,6 +53,7 @@ output { font-weight: 400; color: var(--muted); margin-left: .4rem; }
 .card { background: var(--card); border: 1.5px solid var(--line); border-radius: 16px; padding: 1.1rem 1.2rem; margin-bottom: 1rem; }
 .stack > * + * { margin-top: .9rem; }
 .between { display: flex; justify-content: space-between; align-items: center; gap: .8rem; } .wrap { flex-wrap: wrap; }
+.card > .between { margin-bottom: .8rem; } .card > .between h2 { margin: 0; }
 .actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .6rem; }
 .tag { display: inline-block; font-size: .76rem; font-weight: 700; padding: .12rem .55rem; border-radius: 99px; background: var(--line); white-space: nowrap; }
 .tag.gap, .tag.soon { background: var(--clay-soft); color: var(--clay); } .tag.proven { background: var(--moss-soft); color: var(--moss); }
@@ -75,25 +76,29 @@ output { font-weight: 400; color: var(--muted); margin-left: .4rem; }
 /* troll and bridge */
 .trollsvg { flex: none; overflow: visible; }
 .troll { transform-origin: 60px 110px; animation: bob 4s ease-in-out infinite; }
+.troll .ear-l { transform-origin: 46px 36px; animation: twitch 5s ease-in-out infinite; } .troll .ear-r { transform-origin: 74px 36px; animation: twitch 5s ease-in-out .4s infinite reverse; }
+@keyframes twitch { 0%, 88%, 100% { transform: rotate(0); } 93% { transform: rotate(-7deg); } }
 .troll.happy { animation: hop .9s ease-in-out 2; }
 @keyframes bob { 50% { transform: translateY(-2px) rotate(-1.2deg); } }
 @keyframes hop { 40% { transform: translateY(-9px); } }
 .ripple { animation: drift 6s linear infinite alternate; } @keyframes drift { to { transform: translateX(18px); } }
 :root[data-calm='1'] * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
-.bridge { width: 100%; height: auto; display: block; border-radius: 12px; }
-.bridge .sign { font: 700 13px var(--display); fill: var(--ink); } .bridge .sign.light { fill: #fff; } .bridge .sign.small { font-size: 12px; fill: var(--ink); }
-.plank { cursor: pointer; } .plank rect { stroke: var(--ink); stroke-width: 2; transition: transform .15s; transform-box: fill-box; transform-origin: center; }
-.plank:hover rect, .plank:focus rect { transform: translateY(-3px); } .plank:focus { outline: none; } .plank:focus rect { stroke: var(--amber); stroke-width: 4; }
-.plank.plain rect { fill: var(--wood); } .plank.proven rect { fill: var(--moss); } .plank.mended rect { fill: var(--amber); }
-.plank.gap rect { fill: transparent; stroke: var(--clay); stroke-width: 3; stroke-dasharray: 6 5; }
+.bridge { width: 100%; height: auto; display: block; border-radius: 14px; }
+.bridge .sign { font: 700 13px var(--display); fill: #33423a; } .bridge .sign.light { fill: #fff; } .bridge .sign.small { font-size: 12.5px; fill: #fff8ea; }
+.plank { cursor: pointer; } .plank rect { transition: transform .15s; transform-box: fill-box; transform-origin: center; stroke-width: 2; }
+.plank:hover rect, .plank:focus rect { transform: translateY(-3px); } .plank:focus { outline: none; } .plank:focus rect { stroke: #22302a; stroke-width: 3.5; }
+.plank .grain { fill: none; stroke: #00000022; stroke-width: 2; stroke-linecap: round; pointer-events: none; }
+.plank.plain rect { fill: url(#wood); stroke: #a8834f; } .plank.proven rect { fill: #4f9a6a; stroke: #3a7a52; } .plank.mended rect { fill: #eeb84f; stroke: #c98f24; }
+.plank.gap rect { fill: #ffffff55; stroke: #c8553d; stroke-width: 2.5; stroke-dasharray: 6 5; }
+.plank .hole { font: 700 14px var(--display); fill: #c8553d; pointer-events: none; }
 .hero { padding-bottom: .8rem; } .herohead { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; margin-bottom: .6rem; }
 .streak { text-align: center; border: 1.5px solid var(--line); border-radius: 14px; padding: .35rem .8rem; flex: none; }
 .streak strong { display: block; font: 700 1.6rem var(--display); line-height: 1.1; } .streak span { font-size: .75rem; color: var(--muted); }
 .streak.lit { background: var(--amber-soft); border-color: var(--amber); }
 .legend { list-style: none; display: flex; flex-wrap: wrap; gap: .3rem 1.2rem; padding: 0; margin: .7rem 0 0; font-size: .88rem; }
 .sw { display: inline-block; width: 1.1rem; height: .7rem; border-radius: 3px; margin-right: .4rem; border: 1.5px solid var(--ink); vertical-align: baseline; }
-.sw.gap { border: 2px dashed var(--clay); } .sw.mended { background: var(--amber); } .sw.proven { background: var(--moss); } .sw.plain { background: var(--wood); }
+.sw.gap { border: 2px dashed var(--clay); } .sw.mended { background: #eeb84f; } .sw.proven { background: #4f9a6a; } .sw.plain { background: #d2ae7c; }
 
 /* lists */
 .todo { list-style: none; margin: 0; padding: 0; display: grid; gap: .45rem; grid-template-columns: minmax(0, 1fr); }
@@ -190,3 +195,16 @@ thead th { border: 0; font-size: .78rem; color: var(--muted); } tbody th { font-
   .evidence { grid-template-columns: 1fr; } .herohead { flex-direction: column-reverse; } h1 { font-size: 1.3rem; }
   .flagbtn kbd { display: none; } .toast { bottom: 9.5rem; }
 }
+
+/* first-visit welcome and tour */
+.welcome { max-width: 640px; margin: 0 auto; padding: 6vh 1rem 4rem; text-align: center; display: flex; flex-direction: column; align-items: center; gap: .6rem; }
+.welcome h1 { font-size: 1.7rem; } .welcome .lede { color: var(--ink); } .welcome .fine { margin-top: .4rem; }
+.center { justify-content: center; } .welcome .actions { margin-top: 1rem; }
+.tourart { display: flex; flex-direction: column; align-items: center; gap: .3rem; margin-bottom: .4rem; }
+.miniplanks { display: flex; gap: 5px; }
+.mini { width: 58px; height: 20px; border-radius: 6px; background: #d2ae7c; border: 2px solid #a8834f; display: grid; place-items: center; font: 700 .8rem var(--display); font-style: normal; color: #fff; }
+.mini.gap { background: transparent; border: 2.5px dashed var(--clay); color: var(--clay); } .mini.mended { background: #eeb84f; border-color: #c98f24; } .mini.proven { background: #4f9a6a; border-color: #3a7a52; }
+.dots { display: flex; gap: 6px; margin-top: .3rem; } .dots i { width: 9px; height: 9px; border-radius: 50%; background: var(--line); } .dots i.on { background: var(--moss); }
+.skiptour { margin-top: .6rem; color: var(--muted); }
+.starthere { display: flex; gap: 1rem; align-items: center; border-color: var(--moss); background: var(--moss-soft); } .starthere > div { flex: 1; } .starthere p { margin: 0 0 .6rem; }
+@media (max-width: 600px) { .starthere { flex-direction: column; text-align: center; } }

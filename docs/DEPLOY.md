@@ -1,4 +1,4 @@
-# Deploying NorBu to Vercel
+# Deploying Noor to Vercel
 
 ## How it maps onto Vercel
 

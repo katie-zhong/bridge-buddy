@@ -177,8 +177,8 @@ export const STRUGGLES = [
 
 export const STRATEGIES = [
   { id: 'flag-move', struggle: 'pace', title: 'Flag it and keep listening', how: 'Press F the moment you get lost instead of trying to catch up. Repair the gap after class with the recording.', lift: 0.2 },
-  { id: 'preview', struggle: 'pace', title: 'Five-line preview before class', how: 'Read NorBu\'s five-line preview of the lecture topics before you walk in, so new words are not new.', lift: 0.12 },
-  { id: 'checkpoints', struggle: 'attention', title: 'Ten-minute checkpoints', how: 'NorBu nudges you every ten minutes of lecture: still with us? One tap to flag if not.', setting: { checkpoints: true }, lift: 0.17 },
+  { id: 'preview', struggle: 'pace', title: 'Five-line preview before class', how: 'Read Noor\'s five-line preview of the lecture topics before you walk in, so new words are not new.', lift: 0.12 },
+  { id: 'checkpoints', struggle: 'attention', title: 'Ten-minute checkpoints', how: 'Noor nudges you every ten minutes of lecture: still with us? One tap to flag if not.', setting: { checkpoints: true }, lift: 0.17 },
   { id: 'focus', struggle: 'attention', title: 'Focus view', how: 'Show only the current part of the transcript and hide the side panel.', setting: { focus: true }, lift: 0.1 },
   { id: 'listen', struggle: 'reading', title: 'Listen while you read', how: 'Use the read-aloud button on any explanation or passage and follow along with your eyes.', setting: { readAloud: true }, lift: 0.18 },
   { id: 'summary-first', struggle: 'reading', title: 'Summary first, details second', how: 'Open the lecture summary before the full transcript so you know where each detail belongs.', lift: 0.11 },
@@ -186,6 +186,6 @@ export const STRATEGIES = [
   { id: 'outline', struggle: 'writing', title: 'Three-bullet outline', how: 'Before a written answer, type three short bullets: claim, reason, example. Then join them up.', lift: 0.13 },
   { id: 'worked', struggle: 'numbers', title: 'Worked example first', how: 'Set support to "Worked example" so every calculation is shown with numbers before you try one.', setting: { level: 'example' }, lift: 0.21 },
   { id: 'units', struggle: 'numbers', title: 'Write the formula in words', how: 'Before any numbers, write the formula as a sentence. Then fill in one value at a time.', lift: 0.12 },
-  { id: 'first-plank', struggle: 'starting', title: 'One plank, five minutes', how: 'Open NorBu and repair just one plank. Stopping after one is allowed.', lift: 0.16 },
+  { id: 'first-plank', struggle: 'starting', title: 'One plank, five minutes', how: 'Open Noor and repair just one plank. Stopping after one is allowed.', lift: 0.16 },
   { id: 'same-time', struggle: 'starting', title: 'Same time every day', how: 'Set a daily reminder for a time you are usually free, so starting is not a decision.', lift: 0.14 },
 ];

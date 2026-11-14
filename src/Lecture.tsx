@@ -25,7 +25,7 @@ export function NewLecture() {
           <label>Title<input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. PSYC 100, Lecture 7" /></label>
           <div className="choice">
             <h3>Record it live</h3>
-            <p className="muted">NorBu listens through your microphone and writes the transcript as the lecture happens. {Recognition ? '' : 'Your browser does not support live transcription; Chrome or Edge do.'}</p>
+            <p className="muted">Noor listens through your microphone and writes the transcript as the lecture happens. {Recognition ? '' : 'Your browser does not support live transcription; Chrome or Edge do.'}</p>
             <button className="primary" disabled={!Recognition} onClick={() => create(false)}>Start a live lecture</button>
           </div>
           <div className="choice">
@@ -118,7 +118,7 @@ export function LectureView({ id, home, startAt, reload, toast }: { id: string; 
       setInterim((pending.current.text + ' ' + tail).trim());
     };
     r.onend = () => { if (rec.current === r) { try { r.start(); } catch { /* already running */ } } };
-    r.onerror = (e: any) => { if (e.error === 'not-allowed') { toast('NorBu needs microphone permission to transcribe.'); stopLive(); } };
+    r.onerror = (e: any) => { if (e.error === 'not-allowed') { toast('Noor needs microphone permission to transcribe.'); stopLive(); } };
     rec.current = r;
     r.start();
     setMode('live');
@@ -246,7 +246,7 @@ export function LectureView({ id, home, startAt, reload, toast }: { id: string; 
         </button>
         <form className="ask" onSubmit={(e) => { e.preventDefault(); if (text.trim()) addMark(kind, text.trim()); }}>
           <select value={kind} onChange={(e) => setKind(e.target.value as any)} aria-label="What to add">
-            <option value="question">Ask NorBu</option>
+            <option value="question">Ask Noor</option>
             <option value="comment">Note to self</option>
           </select>
           <input value={text} onChange={(e) => setText(e.target.value)}

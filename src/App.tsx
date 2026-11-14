@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, go, session, profile, signIn, DEMO_NAME, useAsync, when, stamp, type Home, type User } from './ui';
 import { Bridge, Troll } from './Troll';
+import { Welcome } from './Welcome';
 import { LectureView, NewLecture } from './Lecture';
 import { Repair } from './Repair';
 import { Practice } from './Practice';
@@ -40,10 +41,10 @@ function Login({ onDone }: { onDone: () => void }) {
   return (
     <main className="login">
       <Troll size={150} mood="happy" />
-      <h1>NorBu</h1>
+      <h1>Noor</h1>
       <p className="lede">Your Northbridge buddy. Flag what you miss in a lecture, keep listening, and mend the gap later.</p>
       <form onSubmit={submit} className="card">
-        <label>What should NorBu call you?{demo && <span className="muted"> (optional in demo mode)</span>}
+        <label>What should Noor call you?{demo && <span className="muted"> (optional in demo mode)</span>}
           <input value={name} onChange={(e) => setName(e.target.value)} autoFocus maxLength={40} placeholder="First name" />
         </label>
         <div className="dial" role="radiogroup" aria-label="I am a">
@@ -52,7 +53,7 @@ function Login({ onDone }: { onDone: () => void }) {
         </div>
         <label className="toggle">
           <input type="checkbox" checked={demo} onChange={(e) => setDemo(e.target.checked)} />
-          <span>Demo mode<small>Skip signing in. This browser remembers your name and role and opens NorBu straight away next time.</small></span>
+          <span>Demo mode<small>Skip signing in. This browser remembers your name and role and opens Noor straight away next time.</small></span>
         </label>
         {error && <p className="error" role="alert">{error}</p>}
         <button className="primary" disabled={busy || (!demo && !name.trim())}>{demo && !name.trim() ? 'Try the demo' : 'Cross the bridge'}</button>
@@ -91,6 +92,8 @@ function Today({ home }: { home: Home }) {
   const count = (s: string) => planks.filter((p) => p.state === s).length;
   const mood = open.length ? 'think' : streak.today ? 'happy' : 'idle';
   const gaps = count('gap');
+  const fresh = planks.every((p) => p.state === 'plain') && !recalls.length;
+  const demo = home.lectures.find((l) => l.live_demo);
   const line = gaps
     ? `${gaps} ${gaps === 1 ? 'plank is' : 'planks are'} missing. Mend one and I'll stop staring.`
     : due.length ? 'No gaps. But I have a riddle waiting for you.'
@@ -116,6 +119,17 @@ function Today({ home }: { home: Home }) {
           <li><i className="sw plain" />{count('plain')} no gaps flagged</li>
         </ul>
       </section>
+
+      {fresh && demo && (
+        <section className="card starthere">
+          <Troll size={72} mood="happy" />
+          <div>
+            <h2>Start here</h2>
+            <p>Sit in on today's lecture. Press <kbd>F</kbd> the moment you get lost, then come back and mend the plank.</p>
+            <button className="primary" onClick={() => go(`/lecture/${demo.id}`)}>Open {demo.title.split(':')[0]}</button>
+          </div>
+        </section>
+      )}
 
       <div className="cols">
         <section className="card">
@@ -178,7 +192,7 @@ export function App() {
   useEffect(() => applyPrefs(user), [user]);
   useEffect(() => { if (toast) { const t = setTimeout(() => setToast(''), 4500); return () => clearTimeout(t); } }, [toast]);
 
-  // Daily reminder at the time the student chose. Fires while NorBu is open in a tab.
+  // Daily reminder at the time the student chose. Fires while Noor is open in a tab.
   useEffect(() => {
     const at = user?.settings.reminder;
     if (!at) return;
@@ -192,7 +206,7 @@ export function App() {
       try { localStorage.setItem(key, '1'); } catch { /* ignore */ }
       const n = home.data?.open.length || 0;
       const msg = n ? `${n} plank${n === 1 ? '' : 's'} to mend. Five minutes is enough.` : 'Your bridge is holding. One riddle to keep it that way?';
-      if ('Notification' in window && Notification.permission === 'granted') new Notification('NorBu', { body: msg });
+      if ('Notification' in window && Notification.permission === 'granted') new Notification('Noor', { body: msg });
       else setToast(msg);
     };
     const id = setInterval(tick, 20000);
@@ -218,7 +232,8 @@ export function App() {
   };
 
   let screen;
-  if (parts[0] === 'lecture') screen = <LectureView key={parts[1]} id={parts[1]} home={h} startAt={Number(new URLSearchParams(query).get('t')) || undefined} reload={reload} toast={setToast} />;
+  if (!instructor && !h.user.settings.onboarded) screen = <Welcome home={h} reload={reload} />;
+  else if (parts[0] === 'lecture') screen = <LectureView key={parts[1]} id={parts[1]} home={h} startAt={Number(new URLSearchParams(query).get('t')) || undefined} reload={reload} toast={setToast} />;
   else if (parts[0] === 'repair') screen = <><Today home={h} /><Repair id={parts[1]} user={h.user} onClose={() => { reload(); history.length > 1 ? history.back() : go('/'); }} /></>;
   else if (parts[0] === 'practice') screen = <Practice reload={reload} />;
   else if (parts[0] === 'help') screen = <Strategies home={h} reload={reload} />;
@@ -230,11 +245,11 @@ export function App() {
     <>
       <a className="skip" href="#main">Skip to content</a>
       <header className="top">
-        <button className="brand" onClick={() => go(instructor ? '/teach' : '/')}><Troll size={34} /> <span>NorBu</span></button>
+        <button className="brand" onClick={() => go(instructor ? '/teach' : '/')}><Troll size={34} /> <span>Noor</span></button>
         <nav aria-label="Main">
-          {nav.map(([to, label]) => <a key={to} href={`#${to}`} aria-current={path === to ? 'page' : undefined}>{label}</a>)}
+          {(instructor || h.user.settings.onboarded) && nav.map(([to, label]) => <a key={to} href={`#${to}`} aria-current={path === to ? 'page' : undefined}>{label}</a>)}
         </nav>
-        {h.ai === 'offline' && <span className="tag" title="No Claude API key on the server. NorBu answers from built-in course content.">Offline tutor</span>}
+        {h.ai === 'offline' && <span className="tag" title="No Claude API key on the server. Noor answers from built-in course content.">Offline tutor</span>}
       </header>
       <div id="main">{screen}</div>
       {toast && <div className="toast" role="status">{toast}</div>}

@@ -1,4 +1,4 @@
-# NorBu specification
+# Noor specification
 
 > Source of truth for scope and decisions. Reconstructed from the code and README at commit
 > `93bd2f2` plus the repository setup decisions of 2026-11-14. Items marked **(open)** need a
@@ -29,7 +29,8 @@ The "bridge" metaphor: one plank per idea taught. States: plain → **gap** (fla
 | Area | Behaviour |
 |---|---|
 | Sign-in | First name + role (student / instructor). Stand-in for Microsoft Entra ID. Name and role are remembered in the browser and prefilled. **Demo mode** tickbox: name optional ("Guest"), skips the login screen on later visits, and silently signs back in as the same person if the server forgot the session (e.g. Vercel cold start). Signing out turns demo mode off. |
-| Bridge (home) | Planks per idea, open gaps, due recalls, streak, flashcards due, unified deadline list. |
+| Welcome (first visit) | Students only, once (`settings.onboarded`). Step 1 asks what gets in the way (the same struggle chips as "What helps", skippable). Then a four-step tour of the loop (bridge → press F → mend → prove), ending in "Try it in a lecture" (opens the demo lecture) or "Go to my bridge". Can be replayed from Settings. |
+| Bridge (home) | A rope bridge whose deck is built from the planks themselves: one plank per idea, a flagged idea is a visible hole. A "Start here" card points to the demo lecture until the student has flagged something. Planks per idea, open gaps, due recalls, streak, flashcards due, unified deadline list. |
 | Lecture | Timestamped transcript; flag (F); ask about the current moment without typing context; questions/flags collapse into the margin; mended ideas fold into one line of notes; per-lecture notes; AI summary; generate flashcards; discussion posts (optionally anonymous). |
 | Live | Replay the demo lecture "as if live"; record a real lecture with browser speech recognition (Chrome/Edge); paste or upload Panopto captions (.vtt/.srt). |
 | Repair | Explanation dial, riddle, grading, note line + flashcard created on pass, recall scheduled. |
