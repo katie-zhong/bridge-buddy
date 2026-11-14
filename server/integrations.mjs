@@ -7,6 +7,10 @@
 //
 //   Panopto      -> lecture recordings + caption files (WebVTT)   -> parseTranscript()
 //   Brightspace  -> assignment, quiz and reading due dates        -> deadlines table
+//                -> course syllabus: teaching team, office hours,
+//                   Teams links, who to contact for what           -> parseSyllabus()
+//   Read&Write   -> Texthelp licence from registered accommodations -> accommodations table
+//                   (Accessibility Services), opt-in per student
 //   Microsoft 365-> sign-in (Entra ID) and, opt-in, Outlook dates -> users / deadlines
 
 const toSeconds = (t) => {
@@ -43,4 +47,40 @@ export function parseTranscript(raw) {
   }
   if (cur) out.push(cur);
   return out.map((text, i) => ({ text, t_start: i * 30, t_end: i * 30 + 30 }));
+}
+
+// ---- Brightspace syllabus ---------------------------------------------------
+const ROLES = [
+  { key: 'instructor', re: /course instructor/i, label: 'Course instructor' },
+  { key: 'ta', re: /teaching assistant/i, label: 'Teaching assistant' },
+  { key: 'isa', re: /instructional support assistant/i, label: 'Instructional support assistant' },
+];
+const roleOf = (text) => ROLES.find((r) => r.re.test(text));
+const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const section = (text, title) => {
+  const m = text.match(new RegExp(`^${title}\\s*$([\\s\\S]*?)(?=^[A-Z][A-Z ]+$|(?![\\s\\S]))`, 'm'));
+  return m ? m[1].trim().split('\n').map((l) => l.trim()).filter(Boolean) : [];
+};
+
+// Reads the teaching team, office hours (with Microsoft Teams links) and the "who to contact"
+// rules out of a syllabus. Lines it does not understand are skipped, never guessed at.
+export function parseSyllabus(text) {
+  const team = section(text, 'TEACHING TEAM').flatMap((line) => {
+    const m = line.match(/^(.+?):\s*(.+?)\s*<([^>\s]+@[^>\s]+)>$/);
+    const r = m && roleOf(m[1]);
+    return r ? [{ role: r.key, role_label: r.label, name: m[2], email: m[3] }] : [];
+  });
+  const office_hours = section(text, 'OFFICE HOURS').flatMap((line) => {
+    const m = line.match(/^(.+?):\s*(\w+)\s+(\d{1,2}:\d{2})\s*[-\u2013]\s*(\d{1,2}:\d{2}),?\s*(?:Microsoft Teams\s+)?(https:\/\/teams\.microsoft\.com\/\S+)?/);
+    const day = m && DAYS.findIndex((d) => d.toLowerCase() === m[2].toLowerCase());
+    if (!m || day < 0) return [];
+    const who = team.find((t) => t.name === m[1]);
+    return [{ name: m[1], role: who?.role ?? null, day, start: m[3], end: m[4], teams_url: m[5] ?? null }];
+  });
+  const routing = section(text, 'WHO TO CONTACT').flatMap((line) => {
+    const m = line.match(/^(.+?):\s*(.+)$/);
+    const r = m && roleOf(m[2]);
+    return r ? [{ topic: m[1], role: r.key, rule: line }] : [];
+  });
+  return { team, office_hours, routing };
 }

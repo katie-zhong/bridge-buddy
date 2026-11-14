@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { api, useAsync, Toggle, type Area, type Home } from './ui';
+import { api, useAsync, Switch, Toggle, type Area, type Home } from './ui';
 
 interface Picked {
   key: string; label: string; area: string; strategy: { title: string; how: string; why: string };
@@ -41,7 +41,7 @@ export function Suggestions({ reload, watch }: { reload: () => void; watch: stri
     refresh(); reload();
   };
   if (!data) return null;
-  if (!data.picked.length) return <p className="muted">Pick something above and Noor will suggest what to try.</p>;
+  if (!data.picked.length) return <p className="muted">Pick something above and Norbu will suggest what to try.</p>;
   return (
     <div className="suggestions">
       {data.picked.map((s) => (
@@ -71,11 +71,16 @@ export function StrugglesSection({ home, reload }: { home: Home; reload: () => v
   const picked = home.user.struggles;
   const save = async (keys: string[]) => { await api('/me', 'PATCH', { struggles: keys }); reload(); };
   return (
-    <section className="card stack">
+    <section className="card stack" id="profile">
       <h2>What gets in the way</h2>
       <AreaPicker areas={home.areas} picked={picked} onChange={save} />
-      <h2>Suggested for you</h2>
-      <Suggestions reload={reload} watch={picked.join()} />
+      {home.user.settings.recs !== false && (
+        <div id="what-helps" className="stack">
+          <h2>Suggested for you</h2>
+          <Suggestions reload={reload} watch={picked.join()} />
+        </div>
+      )}
+      <Switch checked={home.user.settings.recs !== false} onChange={async (v) => { await api('/me', 'PATCH', { settings: { recs: v } }); reload(); }}>Suggest strategies</Switch>
     </section>
   );
 }

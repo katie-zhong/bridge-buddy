@@ -5,13 +5,30 @@ import { fileURLToPath } from 'node:url';
 import { openDb, insertSegments, now, uid, DAY } from './db.mjs';
 import * as ai from './ai.mjs';
 import { z } from 'zod';
-import { CONCEPTS, AREAS, DETAILS } from './content.mjs';
-import { parseTranscript } from './integrations.mjs';
+import { CONCEPTS, AREAS, DETAILS, SYLLABUS } from './content.mjs';
+import { parseSyllabus, parseTranscript } from './integrations.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const MIN_GROUP = 5; // never show an aggregate about fewer than this many students
 const MAX_LEVEL = 4; // driftwood, oak, stone, iron, gold
 const ROT_AFTER = 3, ROTTEN_AFTER = 5; // newer lectures in the course since the plank was last worked on
+
+// Everything a student may change about their own profile. Unknown keys are rejected.
+// Read&Write highlighter colours, each with a fixed meaning so colour is never the only cue.
+export const RW_COLOURS = ['key', 'term', 'example', 'question'];
+const RwPut = z.object({ highlights: z.record(z.string().min(1).max(600), z.enum(RW_COLOURS)).refine((h) => Object.keys(h).length <= 400, 'Too many highlights') }).strict();
+const RwDemo = z.object({ licensed: z.boolean() }).strict();
+
+const MePatch = z.object({
+  settings: z.object({
+    font: z.enum(['atkinson', 'lexend', 'system']), size: z.number().min(0.8).max(1.6), spacing: z.number().min(1.2).max(2.4),
+    calm: z.boolean(), level: z.enum(['hint', 'example', 'walkthrough']), focus: z.boolean(), checkpoints: z.boolean(),
+    reminder: z.string().regex(/^(\d\d:\d\d)?$/), shareAggregates: z.boolean(), recs: z.boolean(), onboarded: z.boolean(),
+    readAloud: z.boolean(), dictation: z.boolean(),
+    replaySpeed: z.boolean(), speed: z.union([z.literal(0.75), z.literal(1), z.literal(1.5), z.literal(2)]), wordHighlight: z.boolean(),
+  }).partial().strict().optional(),
+  struggles: z.array(z.string().max(40)).max(20).optional(),
+}).strict();
 
 // Returns the (req, res) request listener. Used directly by the Vercel Function in api/,
 // and wrapped in an http.Server by createApp() for local dev, `npm start` and tests.
@@ -25,6 +42,7 @@ export function createHandler(db = openDb()) {
   const fail = (status, message) => Object.assign(new Error(message), { status });
 
   const pub = (u) => ({ id: u.id, name: u.name, role: u.role, settings: JSON.parse(u.settings || '{}'), struggles: JSON.parse(u.struggles || '[]') });
+  const rwLicensed = (u) => !!one('select readwrite from accommodations where user_id=?', u.id)?.readwrite;
   const shares = (u) => JSON.parse(u.settings || '{}').shareAggregates !== false;
   const lectureFor = (id, user) => {
     const l = one('select * from lectures where id=?', id);
@@ -32,6 +50,12 @@ export function createHandler(db = openDb()) {
     return l;
   };
   const segsOf = (lectureId) => q('select * from segments where lecture_id=? order by idx', lectureId);
+  // The ideas taught in a lecture, in order, each starting where its first passage starts.
+  const ideasOf = (lectureId) => {
+    const seen = new Map();
+    for (const s of segsOf(lectureId)) if (!seen.has(s.concept)) seen.set(s.concept, s);
+    return [...seen].map(([concept, first]) => ({ concept, title: CONCEPTS[concept]?.title || `Part ${concept.replace('part-', '')}`, t_start: first.t_start }));
+  };
   const markFor = (id, user) => {
     const m = one('select * from marks where id=? and user_id=?', id, user.id);
     if (!m) throw fail(404, 'Not found');
@@ -100,9 +124,31 @@ export function createHandler(db = openDb()) {
     areas: AREAS.map((a) => ({ key: a.key, label: a.label, details: a.details.map((d) => ({ key: d.key, label: d.label })) })),
   }));
 
+  const setSettings = (userId, patch) => {
+    const cur = one('select settings from users where id=?', userId);
+    run('update users set settings=? where id=?', JSON.stringify({ ...JSON.parse(cur.settings || '{}'), ...patch }), userId);
+  };
+
   on('PATCH', '/api/me', ({ user, body }) => {
-    if (body.settings) run('update users set settings=? where id=?', JSON.stringify({ ...JSON.parse(user.settings || '{}'), ...body.settings }), user.id);
-    if (Array.isArray(body.struggles)) run('update users set struggles=? where id=?', JSON.stringify(body.struggles.filter((k) => DETAILS.some((d) => d.key === k))), user.id);
+    const parsed = MePatch.safeParse(body);
+    if (!parsed.success) throw fail(400, 'Those settings are not valid');
+    const { settings, struggles } = parsed.data;
+    if (settings) setSettings(user.id, settings);
+    if (struggles) {
+      const before = JSON.parse(user.struggles || '[]');
+      const next = struggles.filter((k, i) => DETAILS.some((d) => d.key === k) && struggles.indexOf(k) === i);
+      run('update users set struggles=? where id=?', JSON.stringify(next), user.id);
+      // A newly picked detail switches on its strategy (and the setting it needs), unless the
+      // student turned recommendations off or already made a choice about that strategy.
+      const recsOn = JSON.parse(one('select settings from users where id=?', user.id).settings || '{}').recs !== false;
+      for (const key of next.filter((k) => !before.includes(k))) {
+        const s = DETAILS.find((d) => d.key === key).strategy;
+        const decided = one('select 1 from strategy_use where user_id=? and strategy_id=?', user.id, key);
+        if (!recsOn || decided) continue;
+        run('insert into strategy_use values(?,?,1,null)', user.id, key);
+        if (s.setting) setSettings(user.id, s.setting);
+      }
+    }
     return pub(one('select * from users where id=?', user.id));
   });
 
@@ -115,12 +161,14 @@ export function createHandler(db = openDb()) {
     notes: q('select * from notes where user_id=?', user.id),
     posts: q('select * from posts where user_id=?', user.id),
     strategies: q('select * from strategy_use where user_id=?', user.id),
+    accommodations: q('select readwrite, source from accommodations where user_id=?', user.id),
+    readwrite_highlights: q('select lecture_id, data from rw_highlights where user_id=?', user.id),
     lectures: q('select * from lectures where owner_id=?', user.id),
   }));
 
   on('DELETE', '/api/me', ({ user }) => {
     for (const l of q('select id from lectures where owner_id=?', user.id)) run('delete from segments where lecture_id=?', l.id);
-    for (const t of ['marks', 'attempts', 'planks', 'notes', 'posts', 'strategy_use']) run(`delete from ${t} where user_id=?`, user.id);
+    for (const t of ['marks', 'attempts', 'planks', 'notes', 'posts', 'strategy_use', 'accommodations', 'rw_highlights']) run(`delete from ${t} where user_id=?`, user.id);
     run('delete from lectures where owner_id=?', user.id);
     run('delete from users where id=?', user.id);
     return { deleted: true };
@@ -132,10 +180,44 @@ export function createHandler(db = openDb()) {
     return {
       lecture,
       segments: segsOf(lecture.id),
+      ideas: ideasOf(lecture.id),
       marks: q('select * from marks where user_id=? and lecture_id=? order by created_at', user.id, lecture.id),
       notes: one('select * from notes where user_id=? and lecture_id=?', user.id, lecture.id) || { body: '', summary: null },
       posts: posts(lecture.id, user),
+      readwrite: rwLicensed(user)
+        ? { licensed: true, highlights: JSON.parse(one('select data from rw_highlights where user_id=? and lecture_id=?', user.id, lecture.id)?.data || '{}') }
+        : { licensed: false, highlights: {} },
     };
+  });
+
+  // ---- Read&Write (Texthelp): only for students whose registered accommodations include it ----
+  // A licence is never visible to instructors or other students. In this build the licence is
+  // simulated per student from Settings (labelled demo); the pilot reads it from Accessibility Services.
+  on('GET', '/api/integrations', ({ user }) => ({
+    brightspace: { connected: true, demo: true },
+    readwrite: user.role === 'student' ? { licensed: rwLicensed(user), source: one('select source from accommodations where user_id=?', user.id)?.source ?? null } : null,
+  }));
+  on('POST', '/api/integrations/readwrite/demo', ({ user, body }) => {
+    if (user.role !== 'student') throw fail(403, 'Read&Write licences are for students');
+    const parsed = RwDemo.safeParse(body);
+    if (!parsed.success) throw fail(400, 'Say whether to simulate a licence');
+    run('insert into accommodations(user_id,readwrite,source) values(?,?,?) on conflict(user_id) do update set readwrite=excluded.readwrite, source=excluded.source',
+      user.id, parsed.data.licensed ? 1 : 0, parsed.data.licensed ? 'Accessibility Services (demo)' : null);
+    return { licensed: rwLicensed(user) };
+  });
+  on('PUT', '/api/lectures/:id/readwrite', ({ user, params, body }) => {
+    const lecture = lectureFor(params.id, user);
+    if (!rwLicensed(user)) throw fail(403, 'Read&Write needs a licence through your registered accommodations');
+    const parsed = RwPut.safeParse(body);
+    if (!parsed.success) throw fail(400, 'Those highlights are not valid');
+    run('insert into rw_highlights(user_id,lecture_id,data) values(?,?,?) on conflict(user_id,lecture_id) do update set data=excluded.data', user.id, lecture.id, JSON.stringify(parsed.data.highlights));
+    return { ok: true };
+  });
+
+  // ---- course people, pulled from the Brightspace syllabus ---------------
+  on('GET', '/api/course', () => {
+    const course = one('select * from courses limit 1');
+    return { code: course.code, title: course.title, source: 'Brightspace', demo: true, synced_at: now(), ...parseSyllabus(SYLLABUS) };
   });
 
   on('POST', '/api/lectures', ({ user, body }) => {
@@ -257,7 +339,7 @@ export function createHandler(db = openDb()) {
   on('GET', '/api/lectures/:id/practice', async ({ user, params }) => {
     const lecture = lectureFor(params.id, user);
     const segs = segsOf(lecture.id);
-    // A personal lecture has no instructor problems, so Noor writes two from the transcript.
+    // A personal lecture has no instructor problems, so Norbu writes two from the transcript.
     if (!need(lecture.id) && segs.length) {
       for (const seg of [segs[Math.floor(segs.length / 3)], segs[Math.floor((2 * segs.length) / 3)]]) {
         const out = await ai.riddle({ lectureTitle: lecture.title, segs, seg });
@@ -450,5 +532,5 @@ export const createApp = (db) => http.createServer(createHandler(db));
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const port = Number(process.env.PORT || 8787);
-  createApp().listen(port, () => console.log(`Noor server on http://localhost:${port}  (tutor: ${ai.aiMode()})`));
+  createApp().listen(port, () => console.log(`Bridgeway server on http://localhost:${port}  (tutor: ${ai.aiMode()})`));
 }

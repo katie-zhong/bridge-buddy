@@ -1,10 +1,10 @@
-# Noor
+# Bridgeway
 
 Your Northbridge buddy. A lecture companion for first-year students, built for
 the ProdCon 2026 case "Learning Without Limits".
 
 **The loop:** flag the moment you get lost → keep listening → mend the gap later with an
-explanation at the level you choose → answer Noor's riddle → renovate each lecture's plank with practice so it does not rot.
+explanation at the level you choose → answer Norbu's riddle → renovate each lecture's plank with practice so it does not rot.
 
 
 ## Run it
@@ -44,7 +44,7 @@ If PowerShell says "running scripts is disabled on this system", use `npm.cmd` i
 
 ### Turning on Claude
 
-Without credentials Noor runs an **offline tutor** that only knows the seeded demo
+Without credentials Bridgeway runs an **offline tutor** that only knows the seeded demo
 lectures (the header shows an "Offline tutor" badge). To use Claude for any lecture:
 
 ```bash
@@ -55,7 +55,7 @@ In PowerShell, set it first with `$env:ANTHROPIC_API_KEY = "sk-ant-..."`, then `
 
 The key stays on the server. `NORBU_MODEL` overrides the model (default `claude-opus-5-5`).
 The Claude path has not been exercised in this repository yet because no key was available
-when it was built; if a call fails, Noor falls back to the offline tutor and says so.
+when it was built; if a call fails, Bridgeway falls back to the offline tutor and says so.
 
 ## What is in it
 
@@ -66,8 +66,10 @@ when it was built; if a call fails, Noor falls back to the offline tutor and say
 | Live | "Sit in on it live" replays the demo lecture as if live. "+" on a bridge records a real lecture from your microphone (Chrome or Edge) or takes a Panopto caption file (.vtt/.srt). |
 | Mend a gap | Source passage → explanation with a Hint / Worked example / Full walkthrough dial → riddle graded on understanding, not spelling. |
 | Renovate | Solve the lecture's practice problems to rebuild its plank: driftwood → oak → stone → iron → gold. |
+| Community | Teaching team, office hours with Microsoft Teams links, and who to email for what, pulled from the Brightspace syllabus (demo). The Email button opens your mail app with the context filled in. |
+| Read&Write | Students with a Read&Write licence through their accommodations can open their lecture notes in a Read&Write-style panel: highlighters, read aloud, collect highlights (mock). |
 | Class view | Instructors see where the class got lost and set the practice problems. Groups only, never names. |
-| Settings | What gets in the way and the strategies Noor suggests for it, typeface, size, spacing, calm mode, focus view, daily reminder, data export, account deletion, opt out of class totals. |
+| Settings | Gear icon, top right. What gets in the way and the strategies Norbu suggests for it, typeface, size, spacing, calm mode, focus view, daily reminder, data export, account deletion, opt out of class totals. |
 
 Read-aloud and "say it" dictation are available on explanations and answer boxes.
 
@@ -78,10 +80,11 @@ Read-aloud and "say it" dictation are available on explanations and answer boxes
 - **Demo data:** three courses with 14 lectures and their practice problems (only the two full ECON 101 lectures are long), a deadline list, and a generated class of 84
   students so the aggregate views have something to show. The app labels these figures as
   demo data wherever they appear.
-- **Not connected yet:** Panopto, Brightspace and Microsoft 365. `server/integrations.mjs`
+- **Not connected yet:** Panopto, Brightspace, Microsoft 365 and Read&Write (the syllabus pull and the licence are mocks).
+  In demo mode a header switch flips between the student and instructor views. `server/integrations.mjs`
   is the single boundary they plug into. Sign-in is a name, standing in for Microsoft
   Entra ID. Do not put real student data in this build before SSO is in place.
-- **Reminders** fire while Noor is open in a tab. Phone push needs a service worker and a
+- **Reminders** fire while Bridgeway is open in a tab. Phone push needs a service worker and a
   push service, which is pilot work.
 
 ## Layout

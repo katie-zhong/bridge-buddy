@@ -34,7 +34,7 @@ export function Renovate({ id, onClose }: { id: string; onClose: () => void }) {
       {p && result?.renovated && (
         <div className="renodone">
           {result.bridge_level != null && <Confetti />}
-          <Troll mood="grin" size={150} />
+          <Troll mood="happy" size={150} />
           <h3>{MATERIALS[result.level - 1]} → {MATERIALS[result.level]}</h3>
           <p>{result.bridge_level != null ? `Every plank on this bridge is now ${MATERIALS[result.bridge_level].toLowerCase()} or better.` : 'Plank rebuilt. It will hold for longer now.'}</p>
           <div className="actions center">
@@ -53,7 +53,7 @@ export function Renovate({ id, onClose }: { id: string; onClose: () => void }) {
           {!problem && <p className="muted">This lecture has no transcript yet, so there is nothing to practise.</p>}
           {problem && (
             <>
-              <div className="riddleq"><Troll mood={result?.passed ? 'grin' : 'think'} size={60} /><p>{problem.question}</p></div>
+              <div className="riddleq"><Troll mood={result?.passed ? 'happy' : 'think'} size={60} /><p>{problem.question}</p></div>
               {!result?.passed && (
                 <>
                   <AnswerBox value={answer} onChange={setAnswer} placeholder="Your answer. Spelling does not matter." />

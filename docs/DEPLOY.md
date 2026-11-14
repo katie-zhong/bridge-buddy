@@ -1,4 +1,4 @@
-# Deploying Noor to Vercel
+# Deploying Bridgeway to Vercel
 
 ## How it maps onto Vercel
 

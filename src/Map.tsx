@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { go, when, MATERIALS, type Course, type Mark, type Plank } from './ui';
+import { go, when, MATERIALS, type CourseBridge, type Mark, type Plank } from './ui';
 import { TrollArt, type Mood } from './Troll';
 
 const W = 900, ROW = 176, TOP = 96, X0 = 238, X1 = 662, DECK = 60;
@@ -46,7 +46,7 @@ function PlankArt({ p, x, y, w, i }: { p: Plank; x: number; y: number; w: number
 }
 
 /** Top-down map: one bridge per course across the same river, one plank per lecture. */
-export function BridgeMap({ courses, open, mood, onAdd }: { courses: Course[]; open: Mark[]; mood: Mood; onAdd: (courseId: string) => void }) {
+export function BridgeMap({ courses, open, mood, onAdd }: { courses: CourseBridge[]; open: Mark[]; mood: Mood; onAdd: (courseId: string) => void }) {
   const [tip, setTip] = useState<{ c: number; i: number } | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout>>();
   const H = TOP + (courses.length - 1) * ROW + 96;
@@ -75,7 +75,7 @@ export function BridgeMap({ courses, open, mood, onAdd }: { courses: Course[]; o
         <path d={bank(1)} fill="#9ccf96" /><path d={bank(-1)} fill="#9ccf96" />
         <path d={bank(1)} fill="none" stroke="#7fb87c" strokeWidth="5" /><path d={bank(-1)} fill="none" stroke="#7fb87c" strokeWidth="5" />
 
-        {/* Noor on a rock in the river */}
+        {/* Norbu on a rock in the river */}
         <ellipse cx={X0 + 212} cy={trollY + 26} rx="44" ry="24" fill="#a9a698" /><ellipse cx={X0 + 212} cy={trollY + 22} rx="36" ry="18" fill="#bfbcae" />
         <g transform={`translate(${X0 + 176} ${trollY - 40}) scale(.6)`}><TrollArt mood={mood} /></g>
 

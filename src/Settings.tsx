@@ -1,10 +1,15 @@
-import { useState } from 'react';
-import { api, go, LevelDial, Toggle, type Home, type Settings } from './ui';
+import { useEffect, useState } from 'react';
+import { api, go, useAsync, LevelDial, Switch, Toggle, type Home, type Integrations, type Settings } from './ui';
 import { StrugglesSection } from './Strategies';
 
-export function SettingsPage({ home, reload, signOut }: { home: Home; reload: () => void; signOut: () => void }) {
+export function SettingsPage({ home, section, reload, signOut }: { home: Home; section?: string; reload: () => void; signOut: () => void }) {
   const user = home.user;
   const s = user.settings;
+  const integrations = useAsync<Integrations>(() => api('/integrations'), []);
+  useEffect(() => {
+    const target = section === 'help' ? 'what-helps' : section;
+    if (target) setTimeout(() => document.getElementById(target)?.scrollIntoView({ block: 'start' }), 60);
+  }, [section]);
   const [confirm, setConfirm] = useState(false);
   const [perm, setPerm] = useState('Notification' in window ? Notification.permission : 'unsupported');
   const save = async (patch: Settings) => { await api('/me', 'PATCH', { settings: patch }); reload(); };
@@ -12,13 +17,14 @@ export function SettingsPage({ home, reload, signOut }: { home: Home; reload: ()
     const data = await api('/export');
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
-    a.download = 'norbu-my-data.json';
+    a.download = 'bridgeway-my-data.json';
     a.click();
   };
   const student = user.role === 'student';
   return (
     <main className="page narrow">
       <h1>Settings</h1>
+      {student && <StrugglesSection home={home} reload={reload} />}
 
       <section className="card stack">
         <h2>Reading</h2>
@@ -40,9 +46,8 @@ export function SettingsPage({ home, reload, signOut }: { home: Home; reload: ()
 
       {student && (
         <>
-          <StrugglesSection home={home} reload={reload} />
           <section className="card stack">
-            <h2>How Noor helps</h2>
+            <h2>How Norbu helps</h2>
             <div><p>Starting support level</p><LevelDial value={s.level || 'example'} onChange={(l) => save({ level: l })} /></div>
             <Toggle checked={!!s.focus} onChange={(v) => save({ focus: v })}>Focus view in lectures: hide the side panel and dim everything but the current passage</Toggle>
             <Toggle checked={!!s.checkpoints} onChange={(v) => save({ checkpoints: v })}>Checkpoint nudges during live lectures</Toggle>
@@ -50,13 +55,42 @@ export function SettingsPage({ home, reload, signOut }: { home: Home; reload: ()
           </section>
 
           <section className="card stack">
+            <h2>Lecture transcript</h2>
+            <Toggle checked={!!s.replaySpeed} onChange={(v) => save({ replaySpeed: v })}>Replay speed control (0.75× to 2×)</Toggle>
+            <Toggle checked={!!s.wordHighlight} onChange={(v) => save({ wordHighlight: v })}>Highlight the current word during a replay</Toggle>
+          </section>
+
+          <section className="card stack" id="integrations">
+            <h2>Connected tools</h2>
+            <div className="integration">
+              <span className="logo bs" aria-hidden>B</span>
+              <span className="person"><strong>Brightspace</strong><small>Deadlines, syllabus, office hours{integrations.data?.brightspace.demo ? ' · demo data' : ''}</small></span>
+              <span className="tag proven">Connected</span>
+            </div>
+            <div className="integration">
+              <span className="logo rw" aria-hidden>R</span>
+              <span className="person"><strong>Read&amp;Write</strong>
+                <small>{integrations.data?.readwrite?.licensed ? `Licensed through your accommodations (${integrations.data.readwrite.source})` : 'Comes with some registered accommodations. Ask Accessibility Services.'}</small>
+              </span>
+              {integrations.data?.readwrite?.licensed && <span className="tag proven">Licensed</span>}
+            </div>
+            {integrations.data?.readwrite && (
+              <Switch checked={integrations.data.readwrite.licensed} onChange={async (v) => { await api('/integrations/readwrite/demo', 'POST', { licensed: v }); integrations.reload(); }}>
+                Demo: simulate a Read&amp;Write licence
+              </Switch>
+            )}
+          </section>
+
+          <section className="card stack">
             <h2>Daily reminder</h2>
-                        <label>Remind me at
+            <p className="muted">One nudge a day at a time you choose. It mentions gaps to mend, never a lost streak.</p>
+            <label>Remind me at
               <input type="time" value={s.reminder || ''} onChange={(e) => save({ reminder: e.target.value })} />
             </label>
             {s.reminder && <button className="ghost" onClick={() => save({ reminder: '' })}>Turn reminder off</button>}
             {perm === 'default' && <button className="ghost" onClick={async () => setPerm(await Notification.requestPermission())}>Allow notifications on this device</button>}
-            {perm === 'denied' && <p className="fine">Notifications are blocked in this browser, so the reminder will show inside Noor instead.</p>}
+            {perm === 'denied' && <p className="fine">Notifications are blocked in this browser, so the reminder will show inside Bridgeway instead.</p>}
+            <p className="fine">Reminders appear while Bridgeway is open in a browser tab.</p>
           </section>
         </>
       )}
@@ -64,7 +98,7 @@ export function SettingsPage({ home, reload, signOut }: { home: Home; reload: ()
       <section className="card stack">
         <h2>Your data</h2>
         {student && <Toggle checked={s.shareAggregates !== false} onChange={(v) => save({ shareAggregates: v })}>Count my flags in anonymous class totals (instructors see groups of 5 or more, never names)</Toggle>}
-        <p className="muted">Your notes, questions and what you find hard are visible only to you. Noor never records a diagnosis and does not track your location.</p>
+        <p className="muted">Your notes, questions and what you find hard are visible only to you. Bridgeway never records a diagnosis and does not track your location.</p>
         <div className="actions">
           <button className="ghost" onClick={exportData}>Download my data</button>
           <button className="ghost" onClick={signOut}>Sign out</button>

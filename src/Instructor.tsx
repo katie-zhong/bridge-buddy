@@ -103,10 +103,10 @@ export function Instructor({ home }: { home: Home }) {
           <h2>Practice problems</h2>
           <span className="muted">{data.practice ? `${data.practice.first_try}% right first try · ${data.practice.students} students` : `Fewer than ${data.min_group} students have practised`}</span>
         </div>
-        <p className="fine">Students answer these to renovate this lecture's plank. Noor grades for understanding, using your model answer.</p>
+        <p className="fine">Students answer these to renovate this lecture's plank. Norbu grades for understanding, using your model answer.</p>
         <ul className="problemlist">
           {data.problems.map((p) => (
-            <li key={p.id}><span><strong>{p.question}</strong><small>{p.answer || 'Written by Noor from the transcript'}</small></span>
+            <li key={p.id}><span><strong>{p.question}</strong><small>{p.answer || 'Written by Norbu from the transcript'}</small></span>
               <button className="ghost small" onClick={() => removeProblem(p.id)}>Remove</button></li>
           ))}
         </ul>

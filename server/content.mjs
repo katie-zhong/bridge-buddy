@@ -237,28 +237,28 @@ export const DEADLINES = [
 ];
 
 // What gets in the way, described by what the student experiences, never by diagnosis.
-// Each detail carries the one strategy Noor suggests for it, and why.
+// Each detail carries the one strategy Norbu suggests for it, and why.
 const D = (key, label, title, how, why, setting) => ({ key, label, strategy: { title, how, why, setting } });
 export const AREAS = [
   { key: 'pace', label: 'Keeping up in lectures', details: [
     D('pace-fast', 'The lecturer talks faster than I can follow', 'Flag it and keep listening', 'Press F the moment you are lost. Mend the gap after class.', 'Trying to catch up mid-lecture costs you the next idea too.'),
-    D('pace-notes', 'I can\'t listen and take notes at once', 'Let Noor take the notes', 'Just listen. The transcript is saved and your flags mark what matters.', 'Splitting attention between listening and writing drops both.'),
+    D('pace-notes', 'I can\'t listen and take notes at once', 'Let Norbu take the notes', 'Just listen. The transcript is saved and your flags mark what matters.', 'Splitting attention between listening and writing drops both.'),
     D('pace-terms', 'New terms pile up before I get them', 'Preview the summary first', 'Open the lecture summary before class so the new words are not new.', 'A term you have seen once is far easier to follow the second time.'),
   ] },
   { key: 'attention', label: 'Staying focused', details: [
-    D('attn-drift', 'I drift off part-way through', 'Ten-minute checkpoints', 'Noor nudges you every ten minutes of a live lecture.', 'A regular cue brings you back before you have lost the thread.', { checkpoints: true }),
+    D('attn-drift', 'I drift off part-way through', 'Ten-minute checkpoints', 'Norbu nudges you every ten minutes of a live lecture.', 'A regular cue brings you back before you have lost the thread.', { checkpoints: true }),
     D('attn-busy', 'Busy screens distract me', 'Focus view', 'Lectures show only the current passage. The side panel is hidden.', 'Less on screen means less to pull your eyes away.', { focus: true }),
     D('attn-return', 'Once I\'m lost I can\'t get back in', 'Flag, then restart at the next passage', 'Flag, take one breath, and pick up from the newest line.', 'Letting go of the missed part is what lets you rejoin.'),
   ] },
   { key: 'reading', label: 'Reading', details: [
     D('read-slow', 'Reading takes me much longer', 'Listen while you read', 'Use Read aloud on any passage or explanation and follow along.', 'Hearing and seeing the words together eases the load of decoding.'),
-    D('read-dense', 'I lose my place in dense text', 'Roomier text', 'Bigger text with wider line spacing, everywhere in Noor.', 'Space between lines makes it easier to track where you are.', { spacing: 2, size: 1.1 }),
+    D('read-dense', 'I lose my place in dense text', 'Roomier text', 'Bigger text with wider line spacing, everywhere in Bridgeway.', 'Space between lines makes it easier to track where you are.', { spacing: 2, size: 1.1 }),
     D('read-long', 'Long readings feel impossible to start', 'Summary first, details second', 'Read the lecture summary, then only the passages you flagged.', 'Knowing the shape first tells you where each detail belongs.'),
   ] },
   { key: 'writing', label: 'Writing', details: [
     D('write-start', 'I know it but can\'t get it onto the page', 'Say your answer out loud', 'Use the microphone on any answer box. Talk first, tidy later.', 'Speaking skips the step that is getting in your way.'),
     D('write-order', 'My ideas come out in the wrong order', 'Three-bullet outline', 'Type three bullets first: claim, reason, example. Then join them.', 'Ordering three short points is easier than ordering a paragraph.'),
-    D('write-spell', 'Spelling slows me down', 'Ideas over spelling', 'Write it however it comes. Noor checks the idea, not the spelling.', 'Stopping to fix each word breaks your train of thought.'),
+    D('write-spell', 'Spelling slows me down', 'Ideas over spelling', 'Write it however it comes. Norbu checks the idea, not the spelling.', 'Stopping to fix each word breaks your train of thought.'),
   ] },
   { key: 'numbers', label: 'Numbers and formulas', details: [
     D('num-steps', 'I lose track of the steps', 'Full walkthrough first', 'Explanations open with every step shown, one per line.', 'Seeing all the steps laid out frees you from holding them in your head.', { level: 'walkthrough' }),
@@ -266,9 +266,33 @@ export const AREAS = [
     D('num-slips', 'I make small slips with digits', 'Worked example, then one step at a time', 'Explanations open with a worked example to copy the layout from.', 'A fixed layout makes a slipped digit easy to spot.', { level: 'example' }),
   ] },
   { key: 'planning', label: 'Planning and starting', details: [
-    D('plan-start', 'Getting started is the hard part', 'One plank, five minutes', 'Open Noor and renovate one plank. Stopping after one is allowed.', 'A task with a clear end is much easier to begin.'),
+    D('plan-start', 'Getting started is the hard part', 'One plank, five minutes', 'Open Bridgeway and renovate one plank. Stopping after one is allowed.', 'A task with a clear end is much easier to begin.'),
     D('plan-time', 'Deadlines sneak up on me', 'Same time every day', 'Set a daily reminder in Settings for a time you are usually free.', 'A fixed time turns starting into a habit, not a decision.'),
     D('plan-big', 'Big tasks feel too big', 'Work from the "Coming up" list', 'Each deadline lists the planks it covers. Do one plank per sitting.', 'Small visible pieces make progress you can see.'),
   ] },
 ];
 export const DETAILS = AREAS.flatMap((a) => a.details.map((d) => ({ ...d, area: a.label })));
+
+// Demo syllabus as it would come out of Brightspace (Content › Course information). Names and
+// addresses are invented and use the reserved .example domain. parseSyllabus() reads it.
+export const SYLLABUS = `ECON 101 · Introductory Microeconomics · Fall 2026
+Course syllabus
+
+TEACHING TEAM
+Course instructor: Dr. Amara Okafor <aokafor@northbridge.example>
+Teaching assistant: Jonah Reyes <jreyes@northbridge.example>
+Instructional support assistant (ISA): Priya Natarajan <pnatarajan@northbridge.example>
+
+OFFICE HOURS
+Dr. Amara Okafor: Tuesday 14:00-15:30, Microsoft Teams https://teams.microsoft.com/l/meetup-join/demo-econ101-okafor
+Jonah Reyes: Thursday 10:00-11:00, Microsoft Teams https://teams.microsoft.com/l/meetup-join/demo-econ101-reyes-thu
+Jonah Reyes: Friday 15:00-16:00, Microsoft Teams https://teams.microsoft.com/l/meetup-join/demo-econ101-reyes-fri
+Priya Natarajan: Wednesday 12:00-13:00, Microsoft Teams https://teams.microsoft.com/l/meetup-join/demo-econ101-natarajan
+
+WHO TO CONTACT
+Questions about lecture content, readings or problem sets: email your teaching assistant first.
+Extensions, missed work, illness or accommodations: email the instructional support assistant.
+Grades, regrade requests and anything else: email the course instructor.
+
+GRADING
+Problem sets 20%, quizzes 15%, midterm 25%, final exam 40%.`;

@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { z } from 'zod';
 
 // ---- types -------------------------------------------------------------
@@ -6,8 +6,39 @@ export type Level = 'hint' | 'example' | 'walkthrough';
 export interface Settings {
   font?: 'atkinson' | 'lexend' | 'system'; size?: number; spacing?: number; calm?: boolean;
   level?: Level; focus?: boolean; checkpoints?: boolean; reminder?: string;
-  shareAggregates?: boolean; recs?: boolean; onboarded?: boolean;
+  shareAggregates?: boolean; recs?: boolean; onboarded?: boolean; readAloud?: boolean; dictation?: boolean;
+  /** Lecture transcript tools: show the replay speed control, and the chosen speed. */
+  replaySpeed?: boolean; speed?: Speed;
+  /** Lecture transcript tools: highlight the word being read during a replay. */
+  wordHighlight?: boolean;
 }
+export type Speed = 0.75 | 1 | 1.5 | 2;
+export const SPEEDS: Speed[] = [0.75, 1, 1.5, 2];
+export type Role = 'instructor' | 'ta' | 'isa';
+export interface Course {
+  code: string; title: string; source: string; demo: boolean; synced_at: number;
+  team: { role: Role; role_label: string; name: string; email: string }[];
+  office_hours: { name: string; role: Role | null; day: number; start: string; end: string; teams_url: string | null }[];
+  routing: { topic: string; role: Role; rule: string }[];
+}
+export interface Integrations { brightspace: { connected: boolean; demo: boolean }; readwrite: { licensed: boolean; source: string | null } | null }
+export type RwColour = 'key' | 'term' | 'example' | 'question';
+export interface ReadWrite { licensed: boolean; highlights: Record<string, RwColour> }
+
+/** The next start of a weekly slot (day 0 = Sunday, "HH:MM"), in the viewer's time zone. */
+export function nextSlot(day: number, hhmm: string, from = new Date()): Date {
+  const [h, m] = hhmm.split(':').map(Number);
+  const d = new Date(from);
+  d.setHours(h, m, 0, 0);
+  d.setDate(d.getDate() + ((day - d.getDay() + 7) % 7));
+  if (d < from) d.setDate(d.getDate() + 7);
+  return d;
+}
+
+/** A mailto: link with the subject and body filled in. */
+export const mailto = (to: string, subject: string, body: string) =>
+  `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
 export interface User { id: string; name: string; role: 'student' | 'instructor'; settings: Settings; struggles: string[] }
 export interface Segment { id: string; idx: number; t_start: number; t_end: number; text: string; concept: string }
 export interface Mark {
@@ -19,14 +50,15 @@ export interface Plank {
   lecture_id: string; title: string; held_at: number; source: string; live_demo: number; mine: boolean;
   level: number; rot: 0 | 1 | 2; newer: number; open: number; asked: number; problems: number;
 }
-export interface Course { id: string; code: string; title: string; exam_label: string; exam_at: number; theme: string; planks: Plank[] }
+/** One course as it appears on the map: its bridge and the planks (lectures) on it. */
+export interface CourseBridge { id: string; code: string; title: string; exam_label: string; exam_at: number; theme: string; planks: Plank[] }
 export interface Deadline { id: string; course_id: string; title: string; due_at: number; source: string; kind: string; detail: string; weight: number | null; covers: string[] }
 export interface Area { key: string; label: string; details: { key: string; label: string }[] }
 export const MATERIALS = ['Driftwood', 'Oak', 'Stone', 'Iron', 'Gold'];
 export interface Lecture { id: string; title: string; held_at: number; source: string; live_demo: number; owner_id: string | null; open?: number; segments?: number }
 export interface Post { id: string; segment_id: string | null; parent_id: string | null; body: string; author: string; instructor: boolean; mine: boolean; created_at: number }
 export interface Home {
-  user: User; ai: 'claude' | 'offline'; courses: Course[]; streak: { days: number; today: boolean };
+  user: User; ai: 'claude' | 'offline'; courses: CourseBridge[]; streak: { days: number; today: boolean };
   open: Mark[]; deadlines: Deadline[]; areas: Area[];
 }
 
@@ -36,7 +68,7 @@ export const session = {
   set token(v: string | null) { try { v ? localStorage.setItem('norbu-token', v) : localStorage.removeItem('norbu-token'); } catch { /* private mode */ } },
 };
 
-// The name and role someone signed in with, kept in this browser. With `demo` on, Noor signs
+// The name and role someone signed in with, kept in this browser. With `demo` on, Bridgeway signs
 // them in automatically (no login screen), and silently signs them in again if the server has
 // forgotten them (e.g. a Vercel cold start wiped the demo database).
 const Profile = z.object({
@@ -206,7 +238,9 @@ export function LevelDial({ value, onChange }: { value: Level; onChange: (l: Lev
   return (
     <div className="dial" role="radiogroup" aria-label="How much support">
       {LEVELS.map((l) => (
-        <button key={l.key} role="radio" aria-checked={value === l.key} className={value === l.key ? 'on' : ''} title={l.blurb} onClick={() => onChange(l.key)}>{l.label}</button>
+        <button key={l.key} role="radio" aria-checked={value === l.key} className={value === l.key ? 'on' : ''} title={l.blurb} onClick={() => onChange(l.key)}>
+          <span className="bars3" aria-hidden>{[0, 1, 2].map((k) => <i key={k} className={k <= LEVELS.indexOf(l) ? 'full' : ''} />)}</span>{l.label}
+        </button>
       ))}
     </div>
   );
@@ -233,6 +267,38 @@ export function Modal({ title, onClose, children }: { title: string; onClose: ()
 
 export function OfflineNote({ error }: { error?: string }) {
   return <p className="fine">{error ? `${error}. ` : ''}Answered by the offline tutor (built-in course content), not Claude.</p>;
+}
+
+/** An on/off switch (a checkbox with role="switch"), for settings that flip something on or off. */
+export function Switch({ checked, onChange, children, disabled }: { checked: boolean; onChange: (v: boolean) => void; children: ReactNode; disabled?: boolean }) {
+  return (
+    <label className="switch">
+      <input type="checkbox" role="switch" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
+      <span className="track" aria-hidden><span className="knob" /></span>
+      <span>{children}</span>
+    </label>
+  );
+}
+
+/** A small "?" that opens a short explanation. Escape or a second click closes it. */
+export function WhyTip({ label, children }: { label: string; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const id = useId();
+  const box = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const key = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    const click = (e: MouseEvent) => !box.current?.contains(e.target as Node) && setOpen(false);
+    window.addEventListener('keydown', key);
+    window.addEventListener('mousedown', click);
+    return () => { window.removeEventListener('keydown', key); window.removeEventListener('mousedown', click); };
+  }, [open]);
+  return (
+    <span className="why" ref={box}>
+      <button type="button" className="whybtn" aria-expanded={open} aria-controls={id} aria-label={label} title={label} onClick={() => setOpen(!open)}>?</button>
+      {open && <span id={id} role="note" className="whypop">{children}</span>}
+    </span>
+  );
 }
 
 export function Toggle({ checked, onChange, children }: { checked: boolean; onChange: (v: boolean) => void; children: ReactNode }) {

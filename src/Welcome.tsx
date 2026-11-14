@@ -5,11 +5,11 @@ import { AreaPicker, Suggestions } from './Strategies';
 
 const TOUR: { title: string; body: string; mood: Mood; art: 'planks' | 'gap' | 'materials'; key?: string }[] = [
   { title: 'Every lecture is a plank', body: 'New lectures land on your bridges by themselves.', mood: 'idle', art: 'planks' },
-  { title: 'Lost in a lecture? Press', body: 'Noor marks the spot. Keep listening and mend it later.', mood: 'think', art: 'gap', key: 'F' },
-  { title: 'Renovate to make it stronger', body: 'Practise a plank and it is rebuilt in a tougher material. Leave it too long and it rots.', mood: 'grin', art: 'materials' },
+  { title: 'Lost in a lecture? Press', body: 'Norbu marks the spot. Keep listening and mend it later.', mood: 'think', art: 'gap', key: 'F' },
+  { title: 'Renovate to make it stronger', body: 'Practise a plank and it is rebuilt in a tougher material. Leave it too long and it rots.', mood: 'idle', art: 'materials' },
 ];
 
-/** First visit: what gets in the way, what Noor suggests for it, then a three-step tour. */
+/** First visit: what gets in the way, what Norbu suggests for it, then a three-step tour. */
 export function Welcome({ home, reload }: { home: Home; reload: () => void }) {
   const [step, setStep] = useState(0);
   const [picked, setPicked] = useState<string[]>(home.user.struggles);
@@ -33,7 +33,7 @@ export function Welcome({ home, reload }: { home: Home; reload: () => void }) {
     return (
       <main className="welcome wide">
         <Troll size={96} />
-        <h1>Hi {home.user.name}, I'm Noor. What gets in the way?</h1>
+        <h1>Hi {home.user.name}, I'm Norbu. What gets in the way?</h1>
         <AreaPicker areas={home.areas} picked={picked} onChange={setPicked} />
         <div className="actions center">
           <button className="primary" disabled={busy} onClick={saveStruggles}>{picked.length ? 'Continue' : 'Skip'}</button>

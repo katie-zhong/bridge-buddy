@@ -1,6 +1,6 @@
-# Noor: repository guide
+# Bridgeway: repository guide
 
-Noor is a lecture companion for first-year students (ProdCon 2026 case "Learning Without
+Bridgeway is a lecture companion for first-year students (ProdCon 2026 case "Learning Without
 Limits"). **`docs/SPEC.md` is the source of truth** for what the product does and why.
 `README.md` is the user-facing run guide.
 
@@ -26,6 +26,13 @@ docs/SPEC.md     product + technical specification
 ```
 
 Directory-specific rules: `server/CLAUDE.md`, `src/CLAUDE.md`.
+Design and UI copy: the `bridgeway-design` skill in `.claude/skills/bridgeway-design/` (load it before UI work).
+
+**Names.** The platform is **Bridgeway**; its troll mascot and tutor is **Norbu**. Use "Bridgeway" for
+the app (brand, permissions, "while Bridgeway is open") and "Norbu" when the troll speaks or acts
+(explains, asks the riddle, nudges). Code identifiers keep `norbu` on purpose (`package.json` name,
+`api/norbu.mjs`, `NORBU_*` env vars, `norbu-*` localStorage keys): renaming them would break the
+Vercel deploy and sign everyone out.
 
 ## Commands (run from the repo root)
 
