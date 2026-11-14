@@ -30,17 +30,20 @@ easier to read.
 
 ## The bridge metaphor (keep it consistent)
 
-The home screen is a **top-down forest map**: one lake per course, one bridge across each, **one plank
-per lecture**. Click a bridge to see it up close. All of it lives in `src/Map.tsx` and follows the same
-rules as everything else: scenery under `paint-wide`, small things under `paint`, trees and lakes as
-flat shapes with a lighter and a deeper wash, **no dark outlines** (rails and posts are filled wood, not
-strokes). The hover label is the dark rounded label (`.plantip`). Lecture planks are drawn only by
-`MaterialPlank` / `MaterialIcon` in `src/Troll.tsx`, next to the idea planks (`PlankArt`).
+The home screen is a **top-down forest**: a connected river system, one lake per course, one bridge
+across each lake. Click a bridge to see it **from the front**: a stone arch whose blocks *are* the
+lectures (each lecture is a run of wedge stones in its material, and a flag is a missing stone). The
+blocks must build the bridge, never sit on top of one. It all lives in `src/Map.tsx` (scenes) and
+`src/Scenery.tsx` (trees, rocks, rivers, block layout), and follows the same rules as everything
+else: scenery under `paint-wide`, small things under `paint`, flat shapes with a lighter and a deeper
+wash, **no dark outlines** (rails, posts and shadows are filled shapes, not outlines). The hover
+label is the dark rounded label (`.plantip`). Lecture blocks are drawn only by `MaterialBlock` /
+`MaterialIcon` in `src/Troll.tsx`, next to the idea planks (`PlankArt`).
 
 - **Material** says how often the plank was renovated: driftwood → oak → stone → iron → gold
   (`MATERIALS` in `ui.tsx`; the look is in `MaterialPlank`). Legends use `MaterialIcon`, never CSS swatches.
-- **Rot** (moss, then bites out of the edge) means newer lectures have piled up since the
-  student last worked on it. **A dashed hole with a `?`** means an open flag in that lecture.
+- **Rot** (a little moss, then bites out of the edge) means newer lectures have piled up since the
+  student last worked on it. **A dashed hole with a `?`** (a missing stone on the arch) means an open flag in that lecture.
 - Shape carries the state as well as colour (uneven boards, seams, rivets, moss, holes).
 
 Inside a lecture, each **idea** is drawn with `PlankArt` / `PlankIcon` from `src/Troll.tsx`:
